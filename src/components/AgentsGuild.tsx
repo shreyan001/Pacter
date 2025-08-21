@@ -1,0 +1,137 @@
+'use client'
+
+import React, { useState, useRef, useEffect } from 'react'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Send } from 'lucide-react'
+import { HumanMessageText } from "@/components/ui/message"
+import { EndpointsContext } from '@/app/agent'
+import { useActions } from '@/ai/client'
+import ConnectButton from './ui/walletButton'
+import Image from 'next/image'
+import { useAccount } from 'wagmi'
+import PreBuiltTemplates from './ui/preBuiltTemplates';
+
+export function AgentsGuildInterface() {
+  const { address, isConnected } = useAccount()
+  const actions = useActions<typeof EndpointsContext>();
+  const [input, setInput] = useState("")
+  const [history, setHistory] = useState<[role: string, content: string][]>([
+    ["human", "Hello!"],
+    ["ai", "Welcome to Pacter! How can I assist you today?"]
+  ]);
+  const [elements, setElements] = useState<JSX.Element[]>([]);
+
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
+  }, [elements]); // This will trigger whenever elements change
+
+  const handleSend = async () => {
+    if (!isConnected) {
+      // Optionally, you can show a message to the user here
+      console.log("Please connect your wallet to chat");
+      return;
+    }
+
+    const newElements = [...elements];
+    
+    const humanMessageRef = React.createRef<HTMLDivElement>();
+    const humanKey = `human-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    newElements.push(
+      <div className="flex flex-col items-end w-full gap-1 mt-auto" key={humanKey} ref={humanMessageRef}>
+        <HumanMessageText content={input} />
+      </div>
+    );
+    
+    setElements(newElements);
+    setInput("");
+
+    // Scroll to the human message
+    setTimeout(() => {
+      humanMessageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+
+    const element = await actions.agent({
+      chat_history: history,
+      input: input
+    });
+
+    const aiMessageRef = React.createRef<HTMLDivElement>();
+    const aiKey = `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setElements(prevElements => [
+      ...prevElements,
+      <div className="flex flex-col gap-1 w-full max-w-fit mr-auto" key={aiKey} ref={aiMessageRef}>
+        {element.ui}
+      </div>
+    ]);
+
+    // Scroll to show the top of the AI message
+    setTimeout(() => {
+      aiMessageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 2000);
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gradient-to-br from-[#1a2332] via-[#2d3748] to-[#1a202c] text-white font-mono">
+      <nav className="flex justify-between items-center p-6 border-b border-gray-600 bg-gradient-to-r from-[#4299e1] via-[#3182ce] to-[#2b6cb0] shadow-lg">
+        <div className="flex items-center space-x-3">
+          <Image src="/logo.png" alt="Pacter Logo" width={40} height={40} className="rounded-lg" />
+          <span className="text-2xl font-bold text-[#ffd700] drop-shadow-lg">Pacter</span>
+        </div>
+        <ConnectButton/>
+      </nav>
+      
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="w-full max-w-4xl bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+          <ScrollArea ref={scrollAreaRef} className="h-[500px]">
+            {elements.length > 0 ? (
+              <div className="flex flex-col w-full gap-4 p-6">{elements}</div>
+            ) : isConnected ? (
+              <div className="flex h-full items-center justify-center">
+                <PreBuiltTemplates />
+              </div>
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-gray-300 text-lg">Please connect your wallet to start chatting with Pacter.</p>
+              </div>
+            )}
+          </ScrollArea>
+          
+          <div className="p-6 border-t border-white/20 bg-white/5">
+            <div className="flex space-x-4">
+              <Input
+                placeholder={
+                  isConnected
+                    ? "Describe your autonomous contract or ask a question..."
+                    : "Connect wallet to chat"
+                }
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) =>
+                  e.key === "Enter" && isConnected && handleSend()
+                }
+                className="bg-white/10 text-white border-white/30 rounded-xl flex-grow focus:border-[#ffd700] focus:ring-2 focus:ring-[#ffd700]/50 transition-all placeholder-gray-400"
+                disabled={!isConnected}
+              />
+              <Button
+                onClick={handleSend}
+                className={`bg-gradient-to-r from-[#4299e1] to-[#3182ce] text-white border-0 rounded-xl px-6 py-3 text-sm font-semibold hover:from-[#ffd700] hover:to-[#f6ad55] hover:text-black transition-all duration-300 flex items-center space-x-2 shadow-lg ${
+                  !isConnected && "opacity-50 cursor-not-allowed"
+                }`}
+                disabled={!isConnected}
+              >
+                <Send className="w-4 h-4" />
+                <span>Send</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
