@@ -38,9 +38,9 @@ import {
   });
   
   export const metadata = {
-    name: 'Pacters',
-    description: 'Put your sats to work—AI-verified micro-escrow on Bitcoin’s first zk-rollup',
-    url: 'https://Pacters.vercel.app/', // origin must match your domain & subdomain
+    name: 'Pacter',
+    description: 'The Autonomous Middleman Protocol - AI-verified escrows for digital agreements powered by 0G Network',
+    url: 'https://Pacter.vercel.app/', // origin must match your domain & subdomain
     icons: ['https://raw.githubusercontent.com/shreyan001/Pacters/refs/heads/main/public/logo.png'],
   };
   
@@ -101,15 +101,15 @@ import {
       // First check current chain without switching
       const currentChainId = getChainId(config);
       
-      if (currentChainId !== citreaTestnet.id) {
-        throw new Error(`Wrong network detected. Please switch to Citrea Testnet (Chain ID: ${citreaTestnet.id}) first, then try signing in again.`);
+      if (currentChainId !== ogGalileoTestnet.id) {
+        throw new Error(`Wrong network detected. Please switch to 0G Galileo Testnet (Chain ID: ${ogGalileoTestnet.id}) first, then try signing in again.`);
       }
       
       return {
         domain: typeof window !== 'undefined' ? window.location.host : '',
         uri: typeof window !== 'undefined' ? window.location.origin : '',
-        chains: [citreaTestnet.id],
-        statement: 'Please sign with your account on Citrea Testnet',
+        chains: [ogGalileoTestnet.id],
+        statement: 'Please sign with your account on 0G Galileo Testnet',
       };
     },
     createMessage: ({ address, ...args }: SIWECreateMessageArgs) =>
@@ -117,8 +117,8 @@ import {
     getNonce: async () => {
       // Strict chain validation before getting nonce
       const currentChainId = getChainId(config);
-      if (currentChainId !== citreaTestnet.id) {
-        throw new Error(`Authentication blocked: Wrong network detected. Current: ${currentChainId}, Required: ${citreaTestnet.id}. Please switch to Citrea Testnet first.`);
+      if (currentChainId !== ogGalileoTestnet.id) {
+        throw new Error(`Authentication blocked: Wrong network detected. Current: ${currentChainId}, Required: ${ogGalileoTestnet.id}. Please switch to 0G Galileo Testnet first.`);
       }
       
       const nonce = await getCsrfToken();
@@ -144,8 +144,8 @@ import {
       try {
         // Validate chain before verification
         const currentChainId = getChainId(config);
-        if (currentChainId !== citreaTestnet.id) {
-          console.error(`Wrong chain for verification. Expected: ${citreaTestnet.id}, Got: ${currentChainId}`);
+        if (currentChainId !== ogGalileoTestnet.id) {
+          console.error(`Wrong chain for verification. Expected: ${ogGalileoTestnet.id}, Got: ${currentChainId}`);
           return false;
         }
         
