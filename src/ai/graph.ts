@@ -13,7 +13,7 @@ import path from 'path';
 
 
 const model = new ChatGroq({
-    modelName: "llama3-8b-8192",
+    modelName: "llama-3.3-70b-versatile",
     temperature: 0.7,
     apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
 });
@@ -228,7 +228,7 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
 
         try {
             const response = await escrowPrompt.pipe(new ChatGroq({
-                modelName: "llama3-8b-8192",
+                modelName: "llama-3.3-70b-versatile",
                 temperature: 0.9,
                 apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
             })).invoke({ 
