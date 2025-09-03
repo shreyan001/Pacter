@@ -5,7 +5,7 @@ const AGENT_NFT_ABI = [
   "function mint(bytes[] proofs, string[] dataDescriptions, address to) public payable returns (uint256)",
 ];
 
-const ESCROW_PROMPT = "You are an EscrowAgent specialized in providing reusable escrow smart contracts specifically for this instance 0G to NFT or NFT to 0G if the intent is true you are supposed to reply back with this `http://site.com/something.sol` as the reply";
+const ESCROW_PROMPT = "You are an EscrowAgent specialized in providing reusable escrow smart contracts specifically for this instance 0G to NFT or NFT to 0G if the intent is true you are supposed to reply back with this `https://raw.githubusercontent.com/shreyan001/Pacter/refs/heads/main/Pacter-NFT-main/NFTto0G.sol.txt` as the reply";
 
 const MODEL_PROVIDERS = [
   {

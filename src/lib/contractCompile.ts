@@ -157,7 +157,7 @@ contract ETH2ERC20Escrow is ReentrancyGuard {
       }
   },
   {
-    name: "ETH2NFTEscrow",
+    name: "0G2NFTEscrow",
     contractCode: `// SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
@@ -165,7 +165,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
- * @title ETH-to-NFT Escrow Contract
+ * @title 0G-to-NFT Escrow Contract
  * @dev P2P transactions using ETH through escrow for NFTs.
  */
 contract ETH2NFTEscrow is ReentrancyGuard {

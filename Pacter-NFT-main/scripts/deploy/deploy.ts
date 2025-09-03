@@ -13,8 +13,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     // 1. Deploy ZKPVerifier (alternative)
 
     // 2. Prepare initialization parameters
-    const nftName = process.env.ZG_NFT_NAME || "0G Agent NFT";
-    const nftSymbol = process.env.ZG_NFT_SYMBOL || "A0GIA";
+    const nftName =  "Pacter Agent";
+    const nftSymbol = "PACT";
     const chainURL = process.env.ZG_RPC_URL || "https://evmrpc-testnet.0g.ai";
     const indexerURL = process.env.ZG_INDEXER_URL || "https://indexer-storage-testnet-turbo.0g.ai";
 

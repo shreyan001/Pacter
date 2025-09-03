@@ -39,7 +39,10 @@
   },
   "repository": "https://github.com/0glabs/0g-agent-nft.git",
   "dependencies": {
+    "@0glabs/0g-serving-broker": "^0.3.3",
     "@0glabs/0g-ts-sdk": "^0.3.1",
+    "@types/crypto-js": "4.2.2",
+    "crypto-js": "4.2.0",
     "typechain": "^8.3.0"
   }
 }

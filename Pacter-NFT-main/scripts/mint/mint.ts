@@ -13,13 +13,14 @@ let agentNFTAbi: any;
 let teeVerifierAbi: any;
 
 try {
-  const agentNFTDeployment = JSON.parse(
+  // Load AgentNFT implementation ABI from build artifacts (not deployment proxy ABI)
+  const agentNFTArtifact = JSON.parse(
     fs.readFileSync(
-      path.join(__dirname, "../../deployments/zgTestnet/AgentNFT.json"),
+      path.join(__dirname, "../../build/artifacts/contracts/AgentNFT.sol/AgentNFT.json"),
       "utf8"
     )
   );
-  agentNFTAbi = agentNFTDeployment.abi;
+  agentNFTAbi = agentNFTArtifact.abi;
   
   const teeVerifierDeployment = JSON.parse(
     fs.readFileSync(
@@ -42,13 +43,19 @@ interface AgentMetadata {
 
 async function main() {
   try {
+    console.log("🚀 Starting mint process...");
+    
     // --- SETUP ---
+    console.log("📡 Setting up provider and signer...");
     const provider = new ethers.JsonRpcProvider(process.env.OG_RPC_URL);
+    console.log(`Provider URL: ${process.env.OG_RPC_URL}`);
     
     // Use the private key from the .env file
     const signer = new ethers.Wallet(process.env.ZG_AGENT_NFT_CREATOR_PRIVATE_KEY!, provider);
+    console.log(`Signer created successfully`);
     
     // Get contract address from deployment file
+    console.log("📄 Loading contract deployment info...");
     const agentNFTDeployment = JSON.parse(
       fs.readFileSync(
         path.join(__dirname, "../../deployments/zgTestnet/AgentNFT.json"),
@@ -56,13 +63,17 @@ async function main() {
       )
     );
     const contractAddress = agentNFTDeployment.address;
+    console.log(`Contract address loaded: ${contractAddress}`);
 
     console.log(`Using contract at: ${contractAddress}`);
     console.log(`Signer address: ${signer.address}`);
+    console.log(`AgentNFT ABI loaded: ${agentNFTAbi ? 'Yes' : 'No'}`);
 
     const agentNFT = new ethers.Contract(contractAddress, agentNFTAbi, signer);
+    console.log(`AgentNFT contract instance created: ${agentNFT ? 'Success' : 'Failed'}`);
     
     // Get TEEVerifier address
+    console.log("🔐 Loading TEEVerifier deployment info...");
     const teeVerifierDeployment = JSON.parse(
       fs.readFileSync(
         path.join(__dirname, "../../deployments/zgTestnet/TEEVerifier.json"),
@@ -70,8 +81,11 @@ async function main() {
       )
     );
     const teeVerifierAddress = teeVerifierDeployment.address;
+    console.log(`TEEVerifier address loaded: ${teeVerifierAddress}`);
     console.log(`Using TEEVerifier at: ${teeVerifierAddress}`);
+    console.log(`TEEVerifier ABI loaded: ${teeVerifierAbi ? 'Yes' : 'No'}`);
     const teeVerifier = new ethers.Contract(teeVerifierAddress, teeVerifierAbi, signer);
+    console.log(`TEEVerifier contract instance created: ${teeVerifier ? 'Success' : 'Failed'}`);
 
     // --- STEP 1: Prepare metadata and proofs ---
     // Use simplified implementation with predefined constants
@@ -90,66 +104,135 @@ async function main() {
         parameterCount: "7B"
       }
     };
+    console.log("📋 Agent model data structure:", JSON.stringify(agentModelData, null, 2));
     
     // Prepare agent data with simplified implementation
+    console.log("⚙️ Calling prepareAgentData function...");
     const agentMetadata: AgentMetadata[] = await prepareAgentData(agentModelData, signer);
+    console.log("✅ prepareAgentData completed successfully");
     
     console.log(`Generated ${agentMetadata.length} metadata entries`);
     agentMetadata.forEach((meta, i) => {
       console.log(`  ${i+1}. ${meta.description} (${meta.dataHash.slice(0, 10)}...)`);
+      console.log(`     - Data hash: ${meta.dataHash}`);
+      console.log(`     - Proof length: ${meta.proof.length} characters`);
+      console.log(`     - Proof preview: ${meta.proof.slice(0, 50)}...`);
     });
 
     // Extract proofs and descriptions from metadata
+    console.log("📦 Extracting proofs and descriptions...");
     const proofs = agentMetadata.map(item => item.proof);
     const dataDescriptions = agentMetadata.map(item => item.description);
+    console.log(`Extracted ${proofs.length} proofs and ${dataDescriptions.length} descriptions`);
+    console.log("Proof types:", proofs.map(p => typeof p));
+    console.log("Proof lengths:", proofs.map(p => p.length));
 
     // --- STEP 2: Verify proofs with TEEVerifier (optional test) ---
-    console.log("Testing proof verification with TEEVerifier...");
+    console.log("🔍 Testing proof verification with TEEVerifier...");
     try {
       for (let i = 0; i < proofs.length; i++) {
+        console.log(`Verifying proof ${i}:`);
+        console.log(`  - Proof data: ${proofs[i]}`);
+        console.log(`  - Proof type: ${typeof proofs[i]}`);
+        console.log(`  - Is array: ${Array.isArray(proofs[i])}`);
         const verificationResult = await teeVerifier.verifyPreimage([proofs[i]]);
         console.log(`Proof ${i} verification result:`, verificationResult);
       }
-      console.log("All proofs verified successfully");
-    } catch (error) {
-      console.warn("Proof verification test failed. This is expected with mock proofs:", error);
-      console.log("Continuing with mint operation anyway for testing purposes...");
+      console.log("✅ All proofs verified successfully");
+    } catch (error: any) {
+      console.warn("⚠️ Proof verification test failed. This is expected with mock proofs:", error);
+      console.log("📋 Error details:");
+      console.log(`  - Error message: ${error?.message || 'Unknown error'}`);
+      console.log(`  - Error code: ${error?.code || 'N/A'}`);
+      console.log("🔄 Continuing with mint operation anyway for testing purposes...");
     }
 
     // --- STEP 3: Mint the NFT ---
+    console.log("🎯 Starting NFT minting process...");
+    
     // Default recipient is the signer if not specified
     const recipient = process.env.RECIPIENT_ADDRESS || signer.address;
+    console.log(`📍 Recipient address: ${recipient}`);
 
-    console.log("Minting NFT with the following data:");
+    console.log("🔍 Pre-mint validation:");
+    console.log(`- AgentNFT contract: ${agentNFT ? 'Initialized' : 'NOT INITIALIZED'}`);
+    console.log(`- AgentNFT address: ${agentNFT?.target || 'UNDEFINED'}`);
     console.log(`- Number of proofs: ${proofs.length}`);
+    console.log(`- Number of descriptions: ${dataDescriptions.length}`);
     console.log(`- Recipient: ${recipient}`);
+    console.log(`- Signer: ${signer.address}`);
+    
+    // Validate mint function exists
+    console.log(`- Mint function exists: ${typeof agentNFT?.mint === 'function' ? 'Yes' : 'No'}`);
+    if (typeof agentNFT?.mint !== 'function') {
+      throw new Error('AgentNFT contract mint function is not available');
+    }
+    
+    console.log("📊 Detailed parameter validation:");
+    proofs.forEach((proof, i) => {
+      console.log(`  Proof ${i}: type=${typeof proof}, length=${proof?.length || 'undefined'}`);
+    });
+    dataDescriptions.forEach((desc, i) => {
+      console.log(`  Description ${i}: type=${typeof desc}, length=${desc?.length || 'undefined'}`);
+    });
 
     // Estimate gas for the transaction
-    const gasEstimate = await agentNFT.mint.estimateGas(
-      proofs,
-      dataDescriptions,
-      recipient,
-      { value: 0 } // If minting requires payment, add it here
-    );
+    console.log("⛽ Estimating gas for mint transaction...");
+    let gasEstimate;
+    try {
+      gasEstimate = await agentNFT.mint.estimateGas(
+        proofs,
+        dataDescriptions,
+        recipient,
+        { value: 0 } // If minting requires payment, add it here
+      );
+      console.log(`✅ Gas estimation successful: ${gasEstimate}`);
+    } catch (gasError: any) {
+      console.error("❌ Gas estimation failed:");
+      console.error(`  - Error message: ${gasError?.message || 'Unknown error'}`);
+      console.error(`  - Error code: ${gasError?.code || 'N/A'}`);
+      console.error(`  - Full error:`, gasError);
+      throw gasError;
+    }
 
     console.log(`Estimated gas: ${gasEstimate}`);
 
     // Execute the mint transaction
-    const tx = await agentNFT.mint(
-      proofs,
-      dataDescriptions,
-      recipient,
-      {
-        value: 0, // If minting requires payment, add it here
-        gasLimit: Math.ceil(Number(gasEstimate) * 1.2), // Add 20% buffer to gas estimate
-      }
-    );
+    console.log("🚀 Executing mint transaction...");
+    let tx;
+    try {
+      tx = await agentNFT.mint(
+        proofs,
+        dataDescriptions,
+        recipient,
+        {
+          value: 0, // If minting requires payment, add it here
+          gasLimit: Math.ceil(Number(gasEstimate) * 1.2), // Add 20% buffer to gas estimate
+        }
+      );
+      console.log(`✅ Minting transaction sent: ${tx.hash}`);
+    } catch (mintError: any) {
+      console.error("❌ Mint transaction failed:");
+      console.error(`  - Error message: ${mintError?.message || 'Unknown error'}`);
+      console.error(`  - Error code: ${mintError?.code || 'N/A'}`);
+      console.error(`  - Full error:`, mintError);
+      throw mintError;
+    }
 
-    console.log(`Minting transaction sent: ${tx.hash}`);
-    console.log("Waiting for transaction confirmation...");
+    console.log("⏳ Waiting for transaction confirmation...");
 
     // Wait for the transaction to be mined
-    const receipt = await tx.wait();
+    let receipt;
+    try {
+      receipt = await tx.wait();
+      console.log(`✅ Transaction confirmed in block: ${receipt.blockNumber}`);
+      console.log(`Gas used: ${receipt.gasUsed}`);
+    } catch (receiptError: any) {
+      console.error("❌ Transaction confirmation failed:");
+      console.error(`  - Error message: ${receiptError?.message || 'Unknown error'}`);
+      console.error(`  - Full error:`, receiptError);
+      throw receiptError;
+    }
 
     // Parse events to get the token ID
     // The Minted event has the following signature:
@@ -202,14 +285,22 @@ async function main() {
       console.log("Mint successful, but couldn't parse the Minted event.");
     }
 
-  } catch (error) {
-    console.error("Mint failed:", error);
+  } catch (error: any) {
+    console.error("💥 Mint process failed:");
+    console.error(`  - Error type: ${error?.constructor?.name || 'Unknown'}`);
+    console.error(`  - Error message: ${error?.message || 'Unknown error'}`);
+    console.error(`  - Error code: ${error?.code || 'N/A'}`);
+    console.error(`  - Stack trace:`, error?.stack || 'No stack trace available');
+    console.error(`  - Full error object:`, error);
     process.exit(1);
   }
 }
 
 // Execute the script
-main().catch((error) => {
-  console.error(error);
+main().catch((error: any) => {
+  console.error("🚨 Unhandled error in main function:");
+  console.error(`  - Error type: ${error?.constructor?.name || 'Unknown'}`);
+  console.error(`  - Error message: ${error?.message || 'Unknown error'}`);
+  console.error(`  - Full error:`, error);
   process.exit(1);
 });

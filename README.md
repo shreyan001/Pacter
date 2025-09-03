@@ -1,3 +1,23 @@
+
+
+## 📦 0G WaveHack Wave 2 Updates
+
+Test instance for escrow deployment enabling NFT-to-0G token conversion through AI-powered contract generation. Users request iNFT resolution which gives template information to be utilized via agent interface(0G Compute), receive auto-generated contracts deployed through frontend, complete dual-party signatures, and finalize asset deposits for secure escrow completion. 
+
+
+### 📋 Project Information
+
+| Component | Details |
+|-----------|----------|
+| **Deployed Pacter Agent iNFT Contract** | <a href="https://chainscan-galileo.0g.ai/address/0x81674f2f71dc648e391ff90a8e9556e41bbf42f7" target="_blank">`0x81674f2f71dc648e391ff90a8e9556e41bbf42f7`</a> |
+| **Minted NFT-to-0G Token iNFT Info** | <a href="https://chainscan-galileo.0g.ai/tx/0xeb22519494173d0ca588d3b798f4dafc0eb497221fbbda9d7273c9e34bfad938" target="_blank">explorer link</a> |
+| **Deployed Escrow Contract** | <a href="https://chainscan-galileo.0g.ai/address/0x68dde7a0192c9c5c1e0a71cc556579a67458df0d" target="_blank">explorer link</a> |
+| **Demo Video** | `[Video Link - To be filled]` |
+
+---
+
+
+
 # 🟦 Pacter – Programmable Trust Protocol
 
 > **Autonomous agreements. Verifiable enforcement. No intermediaries.**

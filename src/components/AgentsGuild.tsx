@@ -12,6 +12,7 @@ import ConnectButton from './ui/walletButton'
 import Image from 'next/image'
 import { useAccount } from 'wagmi'
 import PreBuiltTemplates from './ui/preBuiltTemplates';
+import PortfolioWallet from './ui/portfolioWallet';
 
 export function AgentsGuildInterface() {
   const { address, isConnected } = useAccount()
@@ -86,8 +87,12 @@ export function AgentsGuildInterface() {
         <ConnectButton/>
       </nav>
       
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-4xl bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+      <div className="flex-1 flex p-8 gap-6">
+        <div className="w-96 flex-shrink-0">
+          <PortfolioWallet />
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-full max-w-4xl bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
           <ScrollArea ref={scrollAreaRef} className="h-[500px]">
             {elements.length > 0 ? (
               <div className="flex flex-col w-full gap-4 p-6">{elements}</div>
@@ -96,8 +101,25 @@ export function AgentsGuildInterface() {
                 <PreBuiltTemplates />
               </div>
             ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-gray-300 text-lg">Please connect your wallet to start chatting with Pacter.</p>
+              <div className="flex h-full items-center justify-center p-8">
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 shadow-2xl text-center max-w-md">
+                  <div className="mb-6">
+                    <div className="w-16 h-16 bg-gradient-to-r from-[#4299e1] to-[#3182ce] rounded-full mx-auto mb-4 flex items-center justify-center">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Connect Your Wallet</h3>
+                    <p className="text-gray-300 text-sm leading-relaxed">Please connect your wallet to start chatting with Pacter and access all features.</p>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                    <p className="text-xs text-gray-400 mb-2">Supported Wallets</p>
+                    <div className="flex justify-center space-x-2">
+                      <div className="bg-white/10 rounded-lg px-3 py-1 text-xs text-gray-300">MetaMask</div>
+                      <div className="bg-white/10 rounded-lg px-3 py-1 text-xs text-gray-300">WalletConnect</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </ScrollArea>
@@ -130,6 +152,7 @@ export function AgentsGuildInterface() {
               </Button>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

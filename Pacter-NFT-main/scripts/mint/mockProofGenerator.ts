@@ -12,22 +12,16 @@ import {
  * Generates a mock proof for testing purposes (fallback)
  * In a real implementation, this would be replaced with actual proof generation
  * from a TEE (Trusted Execution Environment) or other verification system
+ * 
+ * TEEVerifier expects exactly 32-byte proofs for verifyPreimage function
  */
 export function generateMockProof(data: string): string {
-  // Generate a data hash that will be verified
+  // Generate a data hash that will be verified - this is exactly 32 bytes
   const dataHash = ethers.keccak256(ethers.toUtf8Bytes(data));
   
-  // Create a mock TEE attestation proof
-  const mockProof = ethers.AbiCoder.defaultAbiCoder().encode(
-    ["bytes32", "bytes", "bytes"],
-    [
-      dataHash,                                  // The hash of the data
-      ethers.toUtf8Bytes("MOCK_TEE_ATTESTATION"), // Mock attestation data
-      ethers.toUtf8Bytes("MOCK_SIGNATURE")        // Mock signature
-    ]
-  );
-  
-  return mockProof;
+  // For TEEVerifier.verifyPreimage, the proof should be exactly 32 bytes (bytes32)
+  // Return the data hash itself as the proof since TEEVerifier just validates length
+  return dataHash;
 }
 
 /**
@@ -69,12 +63,13 @@ export async function prepareAgentData(modelData: any, signer: ethers.Wallet) {
   const modelConfigHash = ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(MODEL_PROVIDERS)));
   const contextHash = ethers.keccak256(ethers.toUtf8Bytes(modelData.name + modelData.description));
   
-  // Generate mock proofs for each data component
-  const promptProof = generateMockProof(promptHash);
-  const modelConfigProof = generateMockProof(modelConfigHash);
-  const contextProof = generateMockProof(contextHash);
+  // Generate mock proofs for each data component (32-byte hashes)
+  const promptProof = generateMockProof(ESCROW_PROMPT);
+  const modelConfigProof = generateMockProof(JSON.stringify(MODEL_PROVIDERS));
+  const contextProof = generateMockProof(modelData.name + modelData.description);
   
   console.log("✅ Generated agent data with escrow prompt and model providers");
+  console.log(`Proof lengths: ${promptProof.length}, ${modelConfigProof.length}, ${contextProof.length}`);
   
   return [
     {

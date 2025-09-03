@@ -41,15 +41,11 @@ export default function nodegraph() {
 
     // Initial Node: Routes user requests to the appropriate node
     graph.addNode("initial_node", async (state: guildState) => {
-        const SYSTEM_TEMPLATE = `You are an AI agent for Pacter, a revolutionary platform that transforms human chat into structured smart contracts. Pacter creates programmable escrow agreements for digital goods, services, rentals, and micro-loans using autonomous agents.
+        const SYSTEM_TEMPLATE = `You are an AI agent for Pacter, a revolutionary platform that transforms human chat into structured smart contracts. Pacter creates programmable escrow agreements for digital goods, services, rentals, and micro-loans using autonomous agents on the 0G blockchain.
 
 Currently, Pacter supports:
-- ETH to ERC20 token exchanges with secure escrow
-- NFT to ETH trading with automated verification
-- NFT to ERC20 token swaps with smart contract protection
-- NFT to NFT exchanges with trustless execution
-- ERC20 to ERC20 token trading with escrow security
-- Multi-asset escrow agreements with programmable conditions
+- NFT to 0G token exchanges with secure escrow
+- 0G to NFT trading with automated verification
 
 Future possibilities include:
 - Autonomous agents acting as incorruptible middlemen for digital agreements
@@ -65,8 +61,8 @@ Based on the user's input, respond with ONLY ONE of the following words:
 - "unknown" if the request doesn't fit into any of the above categories
 
 Context for decision-making:
-- Escrow smart contracts involve secure peer-to-peer exchanges between various assets like ETH, ERC20 tokens, and NFTs.
-- The platform supports multiple types of smart contract exchanges with automated verification and trustless execution.
+- Escrow smart contracts involve secure peer-to-peer exchanges between NFTs and 0G tokens on the 0G blockchain.
+- The platform currently supports only NFT to 0G token exchanges with automated verification and trustless execution.
 - User contributions can include reporting errors, suggesting improvements, or offering to help develop the project.
 
 Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node", or "unknown". Provide no additional text or explanation.`;
@@ -87,18 +83,19 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
         } else if (content.includes("escrow_Node")) {
             return { messages: [response.content], operation: "escrow_Node" };
         } else if (content.includes("unknown")) {
-            const CONVERSATIONAL_TEMPLATE = `You are an AI assistant for Pacter, a revolutionary platform that transforms human chat into structured smart contracts. Pacter creates programmable escrow agreements for digital goods, services, rentals, and micro-loans using autonomous agents.
+            const CONVERSATIONAL_TEMPLATE = `You are an AI assistant for Pacter, a revolutionary platform that transforms human chat into structured smart contracts. Pacter creates programmable escrow agreements for digital goods, services, rentals, and micro-loans using autonomous agents on the 0G blockchain.
 
             Key Features:
-            - Smart Contract Generation: Transform natural language conversations into secure escrow smart contracts
-            - Multi-Asset Support: Currently supports ETH, ERC20 tokens, and NFT exchanges with automated verification
-            - User Interaction: Conversational interface for creating complex escrow agreements without technical knowledge
+            - Smart Contract Generation: Transform natural language conversations into secure escrow smart contracts on 0G blockchain
+            - NFT to 0G Token Support: Currently supports NFT to 0G token exchanges with automated verification
+            - User Interaction: Conversational interface for creating escrow agreements without technical knowledge
             - Security Focus: All contracts include built-in verification and trustless execution mechanisms
             - Autonomous Agents: AI-powered agents that act as incorruptible middlemen for digital agreements
 
             Current Capabilities:
-            - ETH to ERC20, NFT to ETH, NFT to ERC20, NFT to NFT, and ERC20 to ERC20 exchanges
-            - Automated contract deployment with security verification
+            - NFT to 0G token exchanges with secure escrow
+            - 0G to NFT trading with automated verification
+            - Automated contract deployment with security verification on 0G blockchain
             - Real-time chat-to-contract conversion using AI
 
             Future Possibilities:
