@@ -1,3 +1,4 @@
+'use server'
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
@@ -56,10 +57,27 @@ export async function GET(request: NextRequest) {
 // POST - Store a new deployed contract
 export async function POST(request: NextRequest) {
   try {
-    const contractData: Omit<DeployedContract, 'id' | 'deployedAt'> = await request.json();
+    console.log('POST /api/contracts - Starting contract storage');
+    
+    // Parse request body
+    let contractData: Omit<DeployedContract, 'id' | 'deployedAt'>;
+    try {
+      contractData = await request.json();
+      console.log('Contract data received:', JSON.stringify(contractData, null, 2));
+    } catch (parseError) {
+      console.error('Error parsing request JSON:', parseError);
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+    }
+    
+    // Validate required fields
+    if (!contractData.name || !contractData.contractAddress || !contractData.partyA) {
+      console.error('Missing required fields:', { name: contractData.name, contractAddress: contractData.contractAddress, partyA: contractData.partyA });
+      return NextResponse.json({ error: 'Missing required fields: name, contractAddress, or partyA' }, { status: 400 });
+    }
     
     // Generate unique ID
     const contractId = `${contractData.name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
+    console.log('Generated contract ID:', contractId);
     
     const newContract: DeployedContract = {
       id: contractId,
@@ -69,23 +87,51 @@ export async function POST(request: NextRequest) {
       partyBSignatureStatus: false
     };
     
+    console.log('New contract object:', JSON.stringify(newContract, null, 2));
+    
+    // Check if contracts file exists and is accessible
+    console.log('Contracts file path:', CONTRACTS_FILE);
+    console.log('File exists:', fs.existsSync(CONTRACTS_FILE));
+    
     // Read existing contracts
     let contracts: DeployedContract[] = [];
     if (fs.existsSync(CONTRACTS_FILE)) {
-      const fileContent = fs.readFileSync(CONTRACTS_FILE, 'utf-8');
-      contracts = JSON.parse(fileContent);
+      try {
+        const fileContent = fs.readFileSync(CONTRACTS_FILE, 'utf-8');
+        console.log('File content length:', fileContent.length);
+        contracts = JSON.parse(fileContent);
+        console.log('Existing contracts count:', contracts.length);
+      } catch (readError) {
+        console.error('Error reading/parsing existing contracts file:', readError);
+        return NextResponse.json({ error: 'Error reading existing contracts file' }, { status: 500 });
+      }
+    } else {
+      console.log('Contracts file does not exist, will create new one');
     }
     
     // Add new contract
     contracts.push(newContract);
+    console.log('Total contracts after adding new one:', contracts.length);
     
     // Write back to file
-    fs.writeFileSync(CONTRACTS_FILE, JSON.stringify(contracts, null, 2));
+    try {
+      const jsonString = JSON.stringify(contracts, null, 2);
+      console.log('Writing JSON string length:', jsonString.length);
+      fs.writeFileSync(CONTRACTS_FILE, jsonString);
+      console.log('Successfully wrote contracts file');
+    } catch (writeError) {
+      console.error('Error writing contracts file:', writeError);
+      return NextResponse.json({ error: 'Error writing contracts file' }, { status: 500 });
+    }
     
+    console.log('Contract storage completed successfully');
     return NextResponse.json({ success: true, contract: newContract }, { status: 201 });
   } catch (error) {
-    console.error('Error storing contract:', error);
-    return NextResponse.json({ error: 'Failed to store contract' }, { status: 500 });
+    console.error('Unexpected error in POST /api/contracts:', error);
+    return NextResponse.json({ 
+      error: 'Failed to store contract', 
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 

@@ -261,6 +261,7 @@ async function main() {
       const tokenId = mintedEvent.args[0];
       console.log(`\nMint successful! Token ID: ${tokenId}`);
       console.log(`Owner: ${mintedEvent.args[2]}`);
+      console.log(`Transaction Hash: ${tx.hash}`);
       
       // Save the token ID to a file for future reference
       const outputDir = path.join(__dirname, "../output");
@@ -275,6 +276,7 @@ async function main() {
           tokenId: tokenId.toString(),
           owner: mintedEvent.args[2],
           timestamp: new Date().toISOString(),
+          transactionHash: tx.hash,
           dataDescriptions,
           dataHashes: mintedEvent.args[3].map((hash: any) => hash.toString()),
         }, null, 2)
@@ -283,6 +285,7 @@ async function main() {
       console.log(`Token details saved to: ${outputFile}`);
     } else {
       console.log("Mint successful, but couldn't parse the Minted event.");
+      console.log(`Transaction Hash: ${tx.hash}`);
     }
 
   } catch (error: any) {

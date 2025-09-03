@@ -100,7 +100,12 @@ export function SmartContractDisplay({ contractCode }: { contractCode: string })
   
   const saveContractData = async (deploymentData: any) => {
     try {
-      if (!closestContract || !walletAddress) return
+      console.log('saveContractData called with:', deploymentData);
+      
+      if (!closestContract || !walletAddress) {
+        console.error('Missing required data:', { closestContract: !!closestContract, walletAddress: !!walletAddress });
+        return;
+      }
        
       const contractData = {
         name: closestContract.name || 'ReusableEscrow',
@@ -113,6 +118,8 @@ export function SmartContractDisplay({ contractCode }: { contractCode: string })
         networkId: '0G-testnet',
         description: getContractDescription(closestContract.name)
       }
+      
+      console.log('Sending contract data to API:', contractData);
        
       const response = await fetch('/api/contracts', {
         method: 'POST',
@@ -121,14 +128,37 @@ export function SmartContractDisplay({ contractCode }: { contractCode: string })
         },
         body: JSON.stringify(contractData)
       })
+      
+      console.log('API response status:', response.status);
+      console.log('API response ok:', response.ok);
        
       if (response.ok) {
          const result = await response.json()
          setContractId(result.contract.id)
-         console.log('Contract data saved:', result.contract.id)
-       }
+         console.log('Contract data saved successfully:', result.contract.id)
+      } else {
+        // Handle non-200 responses
+        const errorData = await response.text();
+        console.error('API returned error:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorData
+        });
+        
+        // Try to parse as JSON for better error details
+        try {
+          const errorJson = JSON.parse(errorData);
+          console.error('Parsed error details:', errorJson);
+        } catch (parseError) {
+          console.error('Could not parse error response as JSON');
+        }
+      }
     } catch (error) {
       console.error('Error saving contract data:', error)
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
   }
   
