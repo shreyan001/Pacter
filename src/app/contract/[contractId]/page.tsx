@@ -8,6 +8,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAccount, useSignMessage } from 'wagmi'
 import ConnectButton from '@/components/ui/walletButton'
 import NextImage from 'next/image'
+import { ContractStorage } from '@/lib/contractStorage'
 
 interface DeployedContract {
   id: string;
@@ -46,6 +47,7 @@ export default function ContractPage() {
   const [showContractInfo, setShowContractInfo] = useState(false)
   const [isSigningA, setIsSigningA] = useState(false)
   const [isSigningB, setIsSigningB] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   useEffect(() => {
     fetchContractData()
@@ -55,13 +57,44 @@ export default function ContractPage() {
     try {
       setLoading(true)
       setError(null) // Clear previous errors
+      
+      // First, try to get contract from localStorage
+      const localContract = ContractStorage.getContract(contractId)
+      if (localContract) {
+        console.log('Contract loaded from localStorage:', contractId)
+        setContract(localContract)
+        setLoading(false)
+        
+        // Still fetch from API in background to sync any updates
+        try {
+          const response = await fetch(`/api/contracts?id=${contractId}`)
+          if (response.ok) {
+            const serverContract = await response.json()
+            // Update localStorage with server data if different
+            if (JSON.stringify(localContract) !== JSON.stringify(serverContract)) {
+              ContractStorage.addContract(serverContract)
+              setContract(serverContract)
+              console.log('Contract updated from server:', contractId)
+            }
+          }
+        } catch (bgError) {
+          console.log('Background sync failed, using localStorage data:', bgError)
+        }
+        return
+      }
+      
+      // If not in localStorage, fetch from API
       const response = await fetch(`/api/contracts?id=${contractId}`)
       if (!response.ok) {
         const errorText = await response.text()
         throw new Error(`Contract not found: ${response.status} ${errorText}`)
       }
       const contractData = await response.json()
+      
+      // Save to localStorage for future use
+      ContractStorage.addContract(contractData)
       setContract(contractData)
+      console.log('Contract fetched from API and saved to localStorage:', contractId)
     } catch (err) {
       console.error('Error fetching contract data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch contract')
@@ -95,7 +128,11 @@ export default function ContractPage() {
       if (!result.success || !result.contract) {
         throw new Error('Invalid response format from server')
       }
+      
+      // Update localStorage with the new signature data
+      ContractStorage.addContract(result.contract)
       setContract(result.contract)
+      console.log(`Contract signature updated in localStorage for Party ${party}:`, contractId)
     } catch (error) {
       console.error('Error updating signature status:', error)
       throw error
@@ -153,6 +190,34 @@ export default function ContractPage() {
     navigator.clipboard.writeText(text)
     setIsCopied(true)
     setTimeout(() => setIsCopied(false), 2000)
+  }
+
+  const handleSync = async () => {
+    try {
+      setIsSyncing(true)
+      console.log('Starting contract data synchronization...')
+      
+      const result = await ContractStorage.fullSync()
+      
+      if (result.success) {
+        console.log('Sync completed:', result)
+        
+        // Refresh contract data after sync
+        await fetchContractData()
+        
+        // Show success message
+        const message = `Sync completed! Uploaded: ${result.uploaded || 0}, Downloaded: ${result.downloaded || 0} contracts`
+        console.log(message)
+      } else {
+        console.error('Sync failed:', result.error)
+        alert(`Sync failed: ${result.error}`)
+      }
+    } catch (error) {
+      console.error('Error during sync:', error)
+      alert('Sync failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    } finally {
+      setIsSyncing(false)
+    }
   }
 
   if (loading) {
@@ -634,6 +699,15 @@ export default function ContractPage() {
               >
                 <ScrollText className="h-4 w-4 mr-2" />
                 {showBytecode ? 'Hide' : 'Show'} Bytecode
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full border-white/20 text-gray-200 hover:bg-white/10 font-mono rounded-xl"
+                onClick={handleSync}
+                disabled={isSyncing}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                {isSyncing ? 'Syncing...' : 'Sync Data'}
               </Button>
             </div>
           </div>

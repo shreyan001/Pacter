@@ -5,6 +5,42 @@ import path from 'path';
 
 const CONTRACTS_FILE = path.join(process.cwd(), 'src', 'lib', 'deployedContracts.json');
 
+// Environment detection
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+
+// In-memory cache for contracts (used in production/Vercel)
+// Export for sharing with sync endpoint
+export let contractsCache: DeployedContract[] = []
+export let cacheInitialized = false;
+
+// Initialize cache from file if possible (development) or start empty (production)
+export function initializeCache() {
+  if (cacheInitialized) return;
+  
+  if (!isProduction) {
+    // Development: Use file system
+    try {
+      if (fs.existsSync(CONTRACTS_FILE)) {
+        const fileContent = fs.readFileSync(CONTRACTS_FILE, 'utf-8');
+        contractsCache = JSON.parse(fileContent);
+        console.log('Development: Cache initialized from file with', contractsCache.length, 'contracts');
+      } else {
+        contractsCache = [];
+        console.log('Development: Cache initialized empty (no file found)');
+      }
+    } catch (error) {
+      console.log('Development: Could not read from file system, starting with empty cache:', error.message);
+      contractsCache = [];
+    }
+  } else {
+    // Production: Start with empty cache (will be populated from client requests)
+    contractsCache = [];
+    console.log('Production: Cache initialized empty (memory-only mode)');
+  }
+  
+  cacheInitialized = true;
+}
+
 interface DeployedContract {
   id: string;
   name: string;
@@ -32,22 +68,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const contractId = searchParams.get('id');
     
-    // Read contracts from JSON file
-    let contracts: DeployedContract[] = [];
-    if (fs.existsSync(CONTRACTS_FILE)) {
-      const fileContent = fs.readFileSync(CONTRACTS_FILE, 'utf-8');
-      contracts = JSON.parse(fileContent);
-    }
+    // Initialize cache from file if possible
+    initializeCache();
     
     if (contractId) {
-      const contract = contracts.find(c => c.id === contractId);
+      const contract = contractsCache.find(c => c.id === contractId);
       if (!contract) {
         return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
       }
       return NextResponse.json(contract);
     }
     
-    return NextResponse.json(contracts);
+    return NextResponse.json(contractsCache);
   } catch (error) {
     console.error('Error reading contracts:', error);
     return NextResponse.json({ error: 'Failed to read contracts' }, { status: 500 });
@@ -89,39 +121,25 @@ export async function POST(request: NextRequest) {
     
     console.log('New contract object:', JSON.stringify(newContract, null, 2));
     
-    // Check if contracts file exists and is accessible
-    console.log('Contracts file path:', CONTRACTS_FILE);
-    console.log('File exists:', fs.existsSync(CONTRACTS_FILE));
+    // Initialize cache and add new contract
+    initializeCache();
     
-    // Read existing contracts
-    let contracts: DeployedContract[] = [];
-    if (fs.existsSync(CONTRACTS_FILE)) {
+    // Add new contract to cache
+    contractsCache.push(newContract);
+    console.log('Total contracts after adding new one:', contractsCache.length);
+    
+    // Write to file only in development mode
+    if (!isProduction) {
       try {
-        const fileContent = fs.readFileSync(CONTRACTS_FILE, 'utf-8');
-        console.log('File content length:', fileContent.length);
-        contracts = JSON.parse(fileContent);
-        console.log('Existing contracts count:', contracts.length);
-      } catch (readError) {
-        console.error('Error reading/parsing existing contracts file:', readError);
-        return NextResponse.json({ error: 'Error reading existing contracts file' }, { status: 500 });
+        const jsonString = JSON.stringify(contractsCache, null, 2);
+        console.log('Development: Writing JSON string length:', jsonString.length);
+        fs.writeFileSync(CONTRACTS_FILE, jsonString);
+        console.log('Development: Successfully wrote contracts file');
+      } catch (writeError) {
+        console.log('Development: Error writing to file:', writeError.message);
       }
     } else {
-      console.log('Contracts file does not exist, will create new one');
-    }
-    
-    // Add new contract
-    contracts.push(newContract);
-    console.log('Total contracts after adding new one:', contracts.length);
-    
-    // Write back to file
-    try {
-      const jsonString = JSON.stringify(contracts, null, 2);
-      console.log('Writing JSON string length:', jsonString.length);
-      fs.writeFileSync(CONTRACTS_FILE, jsonString);
-      console.log('Successfully wrote contracts file');
-    } catch (writeError) {
-      console.error('Error writing contracts file:', writeError);
-      return NextResponse.json({ error: 'Error writing contracts file' }, { status: 500 });
+      console.log('Production: Contract saved to memory cache only');
     }
     
     console.log('Contract storage completed successfully');
@@ -147,25 +165,30 @@ export async function PUT(request: NextRequest) {
     
     const updateData = await request.json();
     
-    // Read existing contracts
-    let contracts: DeployedContract[] = [];
-    if (fs.existsSync(CONTRACTS_FILE)) {
-      const fileContent = fs.readFileSync(CONTRACTS_FILE, 'utf-8');
-      contracts = JSON.parse(fileContent);
-    }
+    // Initialize cache
+    initializeCache();
     
-    // Find and update contract
-    const contractIndex = contracts.findIndex(c => c.id === contractId);
+    // Find and update contract in cache
+    const contractIndex = contractsCache.findIndex(c => c.id === contractId);
     if (contractIndex === -1) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
     }
     
-    contracts[contractIndex] = { ...contracts[contractIndex], ...updateData };
+    contractsCache[contractIndex] = { ...contractsCache[contractIndex], ...updateData };
     
-    // Write back to file
-    fs.writeFileSync(CONTRACTS_FILE, JSON.stringify(contracts, null, 2));
+    // Write to file only in development mode
+    if (!isProduction) {
+      try {
+        fs.writeFileSync(CONTRACTS_FILE, JSON.stringify(contractsCache, null, 2));
+        console.log('Development: Contract updated in file');
+      } catch (writeError) {
+        console.log('Development: Error writing to file:', writeError.message);
+      }
+    } else {
+      console.log('Production: Contract updated in memory cache only');
+    }
     
-    return NextResponse.json({ success: true, contract: contracts[contractIndex] });
+    return NextResponse.json({ success: true, contract: contractsCache[contractIndex] });
   } catch (error) {
     console.error('Error updating contract:', error);
     return NextResponse.json({ error: 'Failed to update contract' }, { status: 500 });
@@ -188,15 +211,11 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Valid party (A or B) is required' }, { status: 400 });
     }
     
-    // Read existing contracts
-    let contracts: DeployedContract[] = [];
-    if (fs.existsSync(CONTRACTS_FILE)) {
-      const fileContent = fs.readFileSync(CONTRACTS_FILE, 'utf-8');
-      contracts = JSON.parse(fileContent);
-    }
+    // Initialize cache
+    initializeCache();
     
-    // Find contract
-    const contractIndex = contracts.findIndex(c => c.id === contractId);
+    // Find contract in cache
+    const contractIndex = contractsCache.findIndex(c => c.id === contractId);
     if (contractIndex === -1) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
     }
@@ -212,19 +231,68 @@ export async function PATCH(request: NextRequest) {
       updateFields.partyBSignatureStatus = signatureStatus;
       if (address) updateFields.partyBAddress = address;
       if (signature) updateFields.partyBSignature = signature;
-      if (address && !contracts[contractIndex].partyB) {
+      if (address && !contractsCache[contractIndex].partyB) {
         updateFields.partyB = address;
       }
     }
     
-    contracts[contractIndex] = { ...contracts[contractIndex], ...updateFields };
+    contractsCache[contractIndex] = { ...contractsCache[contractIndex], ...updateFields };
     
-    // Write back to file
-    fs.writeFileSync(CONTRACTS_FILE, JSON.stringify(contracts, null, 2));
+    // Write to file only in development mode
+     if (!isProduction) {
+       try {
+         fs.writeFileSync(CONTRACTS_FILE, JSON.stringify(contractsCache, null, 2));
+         console.log('Development: Contract signature updated in file');
+       } catch (writeError) {
+         console.log('Development: Error writing to file:', writeError.message);
+       }
+     } else {
+       console.log('Production: Contract signature updated in memory cache only');
+     }
     
-    return NextResponse.json({ success: true, contract: contracts[contractIndex] });
+    return NextResponse.json({ success: true, contract: contractsCache[contractIndex] });
   } catch (error) {
     console.error('Error updating signature status:', error);
     return NextResponse.json({ error: 'Failed to update signature status' }, { status: 500 });
+  }
+}
+
+// DELETE - Remove a contract
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const contractId = searchParams.get('id');
+    
+    if (!contractId) {
+      return NextResponse.json({ error: 'Contract ID is required' }, { status: 400 });
+    }
+
+    // Initialize cache
+    initializeCache();
+
+    // Find and remove the contract from cache
+    const contractIndex = contractsCache.findIndex(c => c.id === contractId);
+    if (contractIndex === -1) {
+      return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
+    }
+
+    const deletedContract = contractsCache.splice(contractIndex, 1)[0];
+
+    // Write to file only in development mode
+     if (!isProduction) {
+       try {
+         fs.writeFileSync(CONTRACTS_FILE, JSON.stringify(contractsCache, null, 2));
+         console.log('Development: Contract deleted from file');
+       } catch (writeError) {
+         console.log('Development: Error writing to file:', writeError.message);
+       }
+     } else {
+       console.log('Production: Contract deleted from memory cache only');
+     }
+
+    return NextResponse.json({ success: true, deletedContract });
+  } catch (error) {
+    console.error('Error deleting contract:', error);
+    return NextResponse.json({ error: 'Failed to delete contract' }, { status: 500 });
   }
 }
