@@ -9,12 +9,11 @@ const CONTRACTS_FILE = path.join(process.cwd(), 'src', 'lib', 'deployedContracts
 const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 
 // In-memory cache for contracts (used in production/Vercel)
-// Export for sharing with sync endpoint
-export let contractsCache: DeployedContract[] = []
-export let cacheInitialized = false;
+let contractsCache: DeployedContract[] = []
+let cacheInitialized = false;
 
 // Initialize cache from file if possible (development) or start empty (production)
-export function initializeCache() {
+function initializeCache() {
   if (cacheInitialized) return;
   
   if (!isProduction) {
