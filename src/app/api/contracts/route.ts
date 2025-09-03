@@ -67,17 +67,42 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const contractId = searchParams.get('id');
     
+    // Log environment for debugging
+    console.log('API Environment:', {
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL: process.env.VERCEL,
+      isProduction: isProduction ? 'PRODUCTION MODE' : 'DEVELOPMENT MODE',
+      requestedContractId: contractId,
+      cacheSize: contractsCache.length
+    });
+    
     // Initialize cache from file if possible
     initializeCache();
     
     if (contractId) {
       const contract = contractsCache.find(c => c.id === contractId);
+      
       if (!contract) {
-        return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
+        console.log('Contract not found in server cache:', contractId);
+        console.log('Available contracts in cache:', contractsCache.map(c => c.id));
+        
+        // In production, this is expected - contracts should be managed via localStorage on client
+        if (isProduction) {
+          console.log('PRODUCTION: Contract should be retrieved from client localStorage, not server cache');
+        }
+        
+        return NextResponse.json({ 
+          error: 'Contract not found', 
+          message: isProduction ? 'Contract should be available in localStorage on client side' : 'Contract not found in development cache',
+          environment: isProduction ? 'production' : 'development'
+        }, { status: 404 });
       }
+      
+      console.log('Contract found and returning:', contract.id);
       return NextResponse.json(contract);
     }
     
+    console.log('Returning all contracts, count:', contractsCache.length);
     return NextResponse.json(contractsCache);
   } catch (error) {
     console.error('Error reading contracts:', error);

@@ -58,43 +58,56 @@ export default function ContractPage() {
       setLoading(true)
       setError(null) // Clear previous errors
       
-      // First, try to get contract from localStorage
+      // Check if we're in production (client-side detection)
+      const isProduction = process.env.NODE_ENV === 'production'
+      console.log('Client Environment:', isProduction ? 'PRODUCTION - Using localStorage only' : 'DEVELOPMENT - Using localStorage + API fallback')
+      
+      // Always try localStorage first
       const localContract = ContractStorage.getContract(contractId)
       if (localContract) {
         console.log('Contract loaded from localStorage:', contractId)
         setContract(localContract)
         setLoading(false)
         
-        // Still fetch from API in background to sync any updates
-        try {
-          const response = await fetch(`/api/contracts?id=${contractId}`)
-          if (response.ok) {
-            const serverContract = await response.json()
-            // Update localStorage with server data if different
-            if (JSON.stringify(localContract) !== JSON.stringify(serverContract)) {
-              ContractStorage.addContract(serverContract)
-              setContract(serverContract)
-              console.log('Contract updated from server:', contractId)
+        // In development, still sync with API in background
+        if (!isProduction) {
+          try {
+            const response = await fetch(`/api/contracts?id=${contractId}`)
+            if (response.ok) {
+              const serverContract = await response.json()
+              // Update localStorage with server data if different
+              if (JSON.stringify(localContract) !== JSON.stringify(serverContract)) {
+                ContractStorage.addContract(serverContract)
+                setContract(serverContract)
+                console.log('Contract updated from server:', contractId)
+              }
             }
+          } catch (bgError) {
+            console.log('Background sync failed, using localStorage data:', bgError)
           }
-        } catch (bgError) {
-          console.log('Background sync failed, using localStorage data:', bgError)
         }
         return
       }
       
-      // If not in localStorage, fetch from API
-      const response = await fetch(`/api/contracts?id=${contractId}`)
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Contract not found: ${response.status} ${errorText}`)
+      // If not in localStorage
+      if (isProduction) {
+        // In production, contracts should only exist in localStorage
+        throw new Error('Contract not found in localStorage. In production, contracts are stored locally only.')
+      } else {
+        // In development, try API as fallback
+        console.log('Contract not in localStorage, trying API fallback (development only)...')
+        const response = await fetch(`/api/contracts?id=${contractId}`)
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`Contract not found: ${response.status} ${errorText}`)
+        }
+        const contractData = await response.json()
+        
+        // Save to localStorage for future use
+        ContractStorage.addContract(contractData)
+        setContract(contractData)
+        console.log('Contract fetched from API and saved to localStorage:', contractId)
       }
-      const contractData = await response.json()
-      
-      // Save to localStorage for future use
-      ContractStorage.addContract(contractData)
-      setContract(contractData)
-      console.log('Contract fetched from API and saved to localStorage:', contractId)
     } catch (err) {
       console.error('Error fetching contract data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch contract')
