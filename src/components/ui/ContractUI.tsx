@@ -31,31 +31,13 @@ export function SmartContractDisplay({ contractCode }: { contractCode: string })
   }
 
   useEffect(() => {
-    let closestMatch = null;
-    let highestSimilarity = 0;
-    let matchIndex = -1;
-
-    // Loop through all contracts to find the closest match
-    for (let i = 0; i < contractsArray.length; i++) {
-      const contract = contractsArray[i];
-      const currentSimilarity = similarity(contract.contractCode, contractCode);
-      if (currentSimilarity > highestSimilarity) {
-        highestSimilarity = currentSimilarity;
-        closestMatch = contract;
-        matchIndex = i;
-      }
-    }
-
-    if (matchIndex === -1) {
-      matchIndex = 0;
-      closestMatch = contractsArray[0];
-    }
-
-    setClosestContractIndex(matchIndex);
-    setClosestContract(closestMatch);
+    // Since contractsArray now has only one entry, directly use it
+    const contract = contractsArray[0];
+    setClosestContractIndex(0);
+    setClosestContract(contract);
      
-    if (closestMatch && closestMatch.solidityScanResults) {
-      setSolidityScanResults(closestMatch.solidityScanResults);
+    if (contract && contract.solidityScanResults) {
+      setSolidityScanResults(contract.solidityScanResults);
     }
   }, [contractCode]);
 
@@ -164,37 +146,7 @@ export function SmartContractDisplay({ contractCode }: { contractCode: string })
     return 'General purpose escrow contract'
   }
 
-  // Similarity function to find closest matching contract
-  const similarity = (s1: string, s2: string): number => {
-    const longer = s1.length > s2.length ? s1 : s2
-    const shorter = s1.length > s2.length ? s2 : s1
-    const editDistance = levenshteinDistance(longer, shorter)
-    return (longer.length - editDistance) / longer.length
-  }
 
-  const levenshteinDistance = (str1: string, str2: string): number => {
-    const matrix = []
-    for (let i = 0; i <= str2.length; i++) {
-      matrix[i] = [i]
-    }
-    for (let j = 0; j <= str1.length; j++) {
-      matrix[0][j] = j
-    }
-    for (let i = 1; i <= str2.length; i++) {
-      for (let j = 1; j <= str1.length; j++) {
-        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1]
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
-          )
-        }
-      }
-    }
-    return matrix[str2.length][str1.length]
-  }
 
   const toggleCode = () => {
     setShowCode(!showCode)

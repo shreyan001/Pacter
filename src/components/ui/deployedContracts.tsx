@@ -28,8 +28,8 @@ export default function DeployedContracts() {
   const fetchUserContracts = async () => {
     setContractsLoading(true);
     try {
-      // Use real data from deployedContracts.json
-      const contracts: Contract[] = deployedContractsData.map(contract => ({
+      // Use real data from deployedContracts.json and filter by partyA
+      const allContracts: Contract[] = deployedContractsData.map(contract => ({
         id: contract.id,
         name: contract.name,
         contractType: contract.contractType,
@@ -40,9 +40,15 @@ export default function DeployedContracts() {
         partyB: contract.partyB
       }));
       
+      // Filter contracts where partyA matches the connected wallet address
+      const userOwnedContracts = allContracts.filter(contract => 
+        contract.partyA && address && 
+        contract.partyA.toLowerCase() === address.toLowerCase()
+      );
+      
       // Simulate API delay for better UX
       setTimeout(() => {
-        setUserContracts(contracts);
+        setUserContracts(userOwnedContracts);
         setContractsLoading(false);
       }, 500);
     } catch (error) {
@@ -89,9 +95,16 @@ export default function DeployedContracts() {
                       <p className="text-gray-400 text-xs">
                         Contract: {contract.contractAddress.slice(0, 8)}...{contract.contractAddress.slice(-6)}
                       </p>
-                      <p className="text-gray-400 text-xs">
-                        ID: {contract.id}
-                      </p>
+                      {contract.partyA && (
+                        <p className="text-gray-400 text-xs">
+                          Party A: {contract.partyA.slice(0, 6)}...{contract.partyA.slice(-4)}
+                        </p>
+                      )}
+                      {contract.partyB && (
+                        <p className="text-gray-400 text-xs">
+                          Party B: {contract.partyB.slice(0, 6)}...{contract.partyB.slice(-4)}
+                        </p>
+                      )}
                       <p className="text-gray-500 text-xs">
                         {new Date(contract.deployedAt).toLocaleDateString()}
                       </p>

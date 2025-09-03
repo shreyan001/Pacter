@@ -14,7 +14,7 @@ export const contractsArray = [
    * @title 0G-to-NFT Escrow Contract
    * @dev P2P transactions using ETH through escrow for NFTs.
    */
-  contract ETH2NFTEscrow is ReentrancyGuard {
+  contract 0GtoNFTEscrow is ReentrancyGuard {
       struct EscrowOrder {
           address partyA;
           address partyB;

@@ -6,7 +6,7 @@ import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts
 import { ChatGroq } from "@langchain/groq";
 import { systemPrompt } from "./contractTemplate";
 import { ChatOpenAI } from "@langchain/openai";
-import { fetchboxPrompt } from "./fetchbox"
+
 import { contractsArray } from "@/lib/contractCompile";
 import fs from 'fs/promises';
 import path from 'path';
@@ -195,27 +195,8 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
     graph.addNode("escrow_node", async (state: guildState) => {
         console.log("Generating Escrow contract");
 
-     // Ensure this is a string
-        const FetchboxPrompt = ChatPromptTemplate.fromMessages([
-            ["system", fetchboxPrompt],
-            ["human", "{input}"]
-        ]);
-
-        const fetchboxResponse = await FetchboxPrompt.pipe(model).invoke({ input: state.input });
-        
-        let index: number | string;
-        let context: any;
-        if (!isNaN(Number(fetchboxResponse.content))) {
-            index = parseInt(fetchboxResponse.content as string, 10);
-        } else {
-            index = fetchboxResponse.content as string;
-        }
-        
-        if (typeof index === 'number' && !isNaN(index)) {
-            context = contractsArray[index].contractCode;
-        } else {
-            context = index;
-        }
+        // Since contractsArray now has only one entry, directly use it
+        const context = contractsArray[0].contractCode;
 
         const escrowPrompt = ChatPromptTemplate.fromMessages([
             ["system", systemPrompt],
