@@ -42,3 +42,8 @@ placeholder.ts
 .trae/
 placeholder.txt
 *.tht
+
+# Isolate pnpm subdirectory from yarn workspace
+/Pacter-NFT-main/node_modules/
+/Pacter-NFT-main/pnpm-lock.yaml
+/Pacter-NFT-main/.pnpm-debug.log*

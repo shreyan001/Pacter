@@ -19,7 +19,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Pacters",
+  title: "Pacter",
   description: "Turn every satoshi into a smart contract—AI-verified escrows for anything digital.",
 };
 

@@ -39,18 +39,23 @@ export function AgentsGuildInterface() {
       return;
     }
 
+    const currentInput = input;
     const newElements = [...elements];
     
     const humanMessageRef = React.createRef<HTMLDivElement>();
     const humanKey = `human-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     newElements.push(
       <div className="flex flex-col items-end w-full gap-1 mt-auto" key={humanKey} ref={humanMessageRef}>
-        <HumanMessageText content={input} />
+        <HumanMessageText content={currentInput} />
       </div>
     );
     
     setElements(newElements);
     setInput("");
+
+    // Update history with the new human message
+    const updatedHistory: [role: string, content: string][] = [...history, ["human", currentInput]];
+    setHistory(updatedHistory);
 
     // Scroll to the human message
     setTimeout(() => {
@@ -58,8 +63,8 @@ export function AgentsGuildInterface() {
     }, 100);
 
     const element = await actions.agent({
-      chat_history: history,
-      input: input
+      chat_history: updatedHistory,
+      input: currentInput
     });
 
     const aiMessageRef = React.createRef<HTMLDivElement>();
@@ -70,6 +75,10 @@ export function AgentsGuildInterface() {
         {element.ui}
       </div>
     ]);
+
+    // Update history with the actual AI response content
+    const aiResponse = element.responseContent || "AI response received";
+    setHistory(prevHistory => [...prevHistory, ["ai", aiResponse]]);
 
     // Scroll to show the top of the AI message
     setTimeout(() => {

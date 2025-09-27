@@ -18,6 +18,7 @@ export async function streamRunnableUI({ chat_history, input }: { chat_history?:
   },);
 
   const ui = createStreamableUI();
+  let aiResponseContent = "";
 
   for await (const value of stream) {
     
@@ -32,8 +33,16 @@ export async function streamRunnableUI({ chat_history, input }: { chat_history?:
       ui.append(<div className="animate-pulse bg-gray-300 rounded-md p-2 w-24 h-6"></div>);
     }
 if (nodeName !== 'end') {
+      // Capture AI response content from either result or messages
       if ((values as { result?: string }).result) {
-        ui.update(<AIMessageText content={(values as { result: string }).result} />);
+        aiResponseContent = (values as { result: string }).result;
+        ui.update(<AIMessageText content={aiResponseContent} />);
+      } else if ((values as { messages?: any[] }).messages && (values as { messages: any[] }).messages.length > 0) {
+        // Get the last message as the AI response content and convert to string
+        const messages = (values as { messages: any[] }).messages;
+        const lastMessage = messages[messages.length - 1];
+        aiResponseContent = typeof lastMessage === 'string' ? lastMessage : String(lastMessage);
+        ui.update(<AIMessageText content={aiResponseContent} />);
       }
    
       if (nodeName == 'escrow_node' && (values as any).contractData) {
@@ -46,7 +55,7 @@ if (nodeName !== 'end') {
   }
 
   ui.done();
-  return { ui: ui.value };
+  return { ui: ui.value, responseContent: aiResponseContent };
 }
 
 export function exposeEndpoints<T extends Record<string, unknown>>(

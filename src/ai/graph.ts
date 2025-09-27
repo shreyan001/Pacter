@@ -6,10 +6,12 @@ import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts
 import { ChatGroq } from "@langchain/groq";
 import { systemPrompt } from "./contractTemplate";
 import { ChatOpenAI } from "@langchain/openai";
+import {createZGComputeNetworkBroker} from "@0glabs/0g-serving-broker";
 
 import { contractsArray } from "@/lib/contractCompile";
 import fs from 'fs/promises';
 import path from 'path';
+import { githubVerificationNode, isGitHubVerificationRequest } from "./nodes/githubVerification";
 
 
 const model = new ChatGroq({
@@ -18,6 +20,47 @@ const model = new ChatGroq({
     apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
 });
 
+// 0G Compute Network model with official provider
+const zgProviderAddress = "0xf07240Efa67755B5311bc75784a061eDB47165Dd"; // Official llama-3.3-70b-instruct provider
+
+// Initialize 0G Compute Network model
+const initZGModel = async () => {
+    try {
+        const provider = new ethers.JsonRpcProvider("https://evmrpc-testnet.0g.ai");
+        const wallet = new ethers.Wallet(process.env.ZG_PRIVATE_KEY!, provider);
+        const broker = await createZGComputeNetworkBroker(wallet);
+        
+        // Acknowledge the provider
+        await broker.inference.acknowledgeProviderSigner(zgProviderAddress);
+        
+        // Get service metadata
+        const { endpoint, model: modelName } = await broker.inference.getServiceMetadata(zgProviderAddress);
+        
+        return { broker, endpoint, modelName };
+    } catch (error) {
+        console.error("Failed to initialize 0G model:", error);
+        return null;
+    }
+};
+
+// Create 0G model instance
+const createZGChatModel = async (question: string) => {
+    const zgConfig = await initZGModel();
+    if (!zgConfig) return null;
+    
+    const { broker, endpoint, modelName } = zgConfig;
+    const headers = await broker.inference.getRequestHeaders(zgProviderAddress, question);
+    
+    return new ChatOpenAI({
+        modelName: modelName,
+        temperature: 0.7,
+        openAIApiKey: "", // Empty string as per 0G docs
+        configuration: {
+            baseURL: endpoint,
+        }
+    });
+};
+
 type guildState = {
     input: string,
     contractData?: string | null,
@@ -25,6 +68,7 @@ type guildState = {
     messages?: any[] | null,
     operation?: string,
     result?: string,
+    githubVerification?: any,
 }
 
 export default function nodegraph() {
@@ -35,7 +79,8 @@ export default function nodegraph() {
             result: { value: null },
             contractData: { value: null },
             chatHistory: { value: null },
-            operation: { value: null }
+            operation: { value: null },
+            githubVerification: { value: null }
         }
     });
 
@@ -58,6 +103,7 @@ Future possibilities include:
 Based on the user's input, respond with ONLY ONE of the following words:
 - "contribute_node" if the user wants to report any errors or contribute to the project
 - "escrow_Node" if the request is related to creating escrow smart contracts.
+- "github_verification" if the request is about verifying GitHub repositories or deployments
 - "unknown" if the request doesn't fit into any of the above categories
 
 Context for decision-making:
@@ -65,7 +111,7 @@ Context for decision-making:
 - The platform currently supports only NFT to 0G token exchanges with automated verification and trustless execution.
 - User contributions can include reporting errors, suggesting improvements, or offering to help develop the project.
 
-Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node", or "unknown". Provide no additional text or explanation.`;
+Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node", "github_verification", or "unknown". Provide no additional text or explanation.`;
 
         const prompt = ChatPromptTemplate.fromMessages([
             ["system", SYSTEM_TEMPLATE],
@@ -78,10 +124,18 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
         console.log(response.content, "Initial Message");
 
         const content = response.content as string;
+        
+        // Check if it's a GitHub verification request using the helper function
+        if (isGitHubVerificationRequest(state.input)) {
+            return { messages: [response.content], operation: "github_verification" };
+        }
+        
         if (content.includes("contribute_node")) {
             return { messages: [response.content], operation: "contribute_node" };
         } else if (content.includes("escrow_Node")) {
             return { messages: [response.content], operation: "escrow_Node" };
+        } else if (content.includes("github_verification")) {
+            return { messages: [response.content], operation: "github_verification" };
         } else if (content.includes("unknown")) {
             const CONVERSATIONAL_TEMPLATE = `You are an AI assistant for Pacter, a revolutionary platform that transforms human chat into structured smart contracts. Pacter creates programmable escrow agreements for digital goods, services, rentals, and micro-loans using autonomous agents on the 0G blockchain.
 
@@ -131,6 +185,8 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
                 return "contribute_node";
             } else if (state.operation === "escrow_Node") {
                 return "escrow_node";
+            } else if (state.operation === "github_verification") {
+                return "github_verification";
             } else if (state.result) {
                 return "end";
             }
@@ -138,6 +194,7 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
         {
             contribute_node: "contribute_node",
             escrow_node: "escrow_node",
+            github_verification: "github_verification",
             end: END,
         }
     );
@@ -191,7 +248,7 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
         }
     });
 
-    // Add the Escrow_Node
+    // Add the Escrow_Node with 0G model integration
     graph.addNode("escrow_node", async (state: guildState) => {
         console.log("Generating Escrow contract");
 
@@ -205,15 +262,29 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
         ]);
 
         try {
-            const response = await escrowPrompt.pipe(new ChatGroq({
-                modelName: "llama-3.3-70b-versatile",
-                temperature: 0.9,
-                apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-            })).invoke({ 
-                input: state.input, 
-                chat_history: state.chatHistory,
-                context: context
-            });
+            // Try 0G model first, fallback to Groq if needed
+            let response;
+            const zgModel = await createZGChatModel(state.input);
+            
+            if (zgModel && process.env.ZG_PRIVATE_KEY) {
+                console.log("Using 0G Compute Network model");
+                response = await escrowPrompt.pipe(zgModel).invoke({ 
+                    input: state.input, 
+                    chat_history: state.chatHistory,
+                    context: context
+                });
+            } else {
+                console.log("Fallback to Groq model");
+                response = await escrowPrompt.pipe(new ChatGroq({
+                    modelName: "llama-3.3-70b-versatile",
+                    temperature: 0.9,
+                    apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
+                })).invoke({ 
+                    input: state.input, 
+                    chat_history: state.chatHistory,
+                    context: context
+                });
+            }
 
             const content = response.content as string;
 
@@ -242,10 +313,15 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
         }
     });
 
+    // Add the GitHub verification node
+    graph.addNode("github_verification", githubVerificationNode);
+
     //@ts-ignore    
     graph.addEdge("contribute_node", END);
     //@ts-ignore
     graph.addEdge("escrow_node", END);
+    //@ts-ignore
+    graph.addEdge("github_verification", END);
 
     const data = graph.compile();
     return data;
