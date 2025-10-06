@@ -5,11 +5,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Import existing test functionality
-let deployments: any, agentNFTDeployment: any, teeVerifierDeployment: any, agentNFTABI: any;
+let deployments: any, IndiaFreelanceLegalNFTDeployment: any, teeVerifierDeployment: any, IndiaFreelanceLegalNFTABI: any;
 
 try {
-  agentNFTDeployment = JSON.parse(fs.readFileSync(path.join(__dirname, '../deployments/zgTestnet/AgentNFT.json'), 'utf8'));
-  agentNFTABI = JSON.parse(fs.readFileSync(path.join(__dirname, '../build/contracts/AgentNFT.sol/AgentNFT.json'), 'utf8')).abi;
+  IndiaFreelanceLegalNFTDeployment = JSON.parse(fs.readFileSync(path.join(__dirname, '../deployments/zgTestnet/IndiaFreelanceLegalNFT.json'), 'utf8'));
+  IndiaFreelanceLegalNFTABI = JSON.parse(fs.readFileSync(path.join(__dirname, '../build/contracts/IndiaFreelanceLegalNFT.sol/IndiaFreelanceLegalNFT.json'), 'utf8')).abi;
 } catch (error) {
   console.error('Error loading deployment files:', error);
   process.exit(1);
@@ -33,12 +33,12 @@ async function main() {
   console.log('\n📋 Step 1: Extracting NFT Data');
   console.log('==============================');
   
-  const agentNFT = new ethers.Contract(agentNFTDeployment.address, agentNFTABI, provider);
+  const IndiaFreelanceLegalNFT = new ethers.Contract(IndiaFreelanceLegalNFTDeployment.address, IndiaFreelanceLegalNFTABI, provider);
   const tokenId = 0; // Using the minted token
   
   try {
-    const dataDescriptions = await agentNFT.dataDescriptionsOf(tokenId);
-    const dataHashes = await agentNFT.dataHashesOf(tokenId);
+    const dataDescriptions = await IndiaFreelanceLegalNFT.dataDescriptionsOf(tokenId);
+    const dataHashes = await IndiaFreelanceLegalNFT.dataHashesOf(tokenId);
     
     console.log(`✅ Retrieved ${dataDescriptions.length} data entries from NFT`);
     

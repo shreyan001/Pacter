@@ -44,7 +44,7 @@ class ContractMeta<T> {
 }
 
 export const CONTRACTS = {
-    AgentNFT: new ContractMeta(Factories.AgentNFT__factory),
+    IndiaFreelanceLegalNFT: new ContractMeta(Factories.IndiaFreelanceLegalNFT__factory),
     TEEVerifier: new ContractMeta(Factories.TEEVerifier__factory),
 } as const;
 

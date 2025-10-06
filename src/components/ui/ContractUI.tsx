@@ -6,7 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Copy, Code, ExternalLink, Check } from 'lucide-react'
 import { publicClient } from '@/walletConnect/siwe'
 import { useWalletClient, useAccount } from 'wagmi'
-import { contractsArray } from '@/lib/contractCompile'
 import { PieChart } from 'react-minimal-pie-chart'
 
 export function SmartContractDisplay({ contractCode }: { contractCode: string }) {
@@ -31,71 +30,22 @@ export function SmartContractDisplay({ contractCode }: { contractCode: string })
   }
 
   useEffect(() => {
-    // Since contractsArray now has only one entry, directly use it
-    const contract = contractsArray[0];
-    setClosestContractIndex(0);
-    setClosestContract(contract);
-     
-    if (contract && contract.solidityScanResults) {
-      setSolidityScanResults(contract.solidityScanResults);
-    }
+    // Placeholder for future GitHub/web dev verification logic
+    // This will be updated when implementing the new verification flow
   }, [contractCode]);
 
   const useDeployContract = async ({ sourceCode }: { sourceCode: string }) => {
-    try {
-      if (!closestContract) {
-        throw new Error("No matching contract found");
-      }
-
-      const { abi, bytecode } = closestContract;
-
-      //@ts-ignore
-      const hash = await walletClient?.deployContract({
-        //@ts-ignore
-        abi,
-        bytecode,
-        account: walletAddress,
-        args: [],
-      });
-
-      console.log('Contract deployed. Transaction hash:', hash);
-
-      if (hash) {
-        const receipt = await publicClient.waitForTransactionReceipt({ hash });
-        console.log('Contract deployed at:', receipt.contractAddress);
-        return { 
-          contractAddress: receipt.contractAddress, 
-          contractIndex: closestContractIndex 
-        };
-      }
-    } catch (error) {
-      console.error('Error deploying contract:', error);
-      throw error;
-    }
+    // This function will be updated for GitHub/web dev verification
+    // Placeholder for future implementation
+    throw new Error("Smart contract deployment is no longer supported");
   }
 
 
 
   const useHandleDeploy = async () => {
-    setIsLoading(true)
-    const hashaddress = await useDeployContract({ sourceCode: contractCode })
-
-    if (hashaddress) {
-      //@ts-ignore
-      setDeployedAddress(hashaddress.contractAddress)
-      setShowCode(false)
-      setIsDeployed(true)
-       
-      // Save contract data to JSON storage
-      await saveContractData({
-        //@ts-ignore
-        contractAddress: hashaddress.contractAddress,
-        //@ts-ignore
-        transactionHash: hashaddress.transactionHash || '',
-        contractIndex: closestContractIndex
-      })
-    }
-    setIsLoading(false)
+    // This function will be updated for GitHub/web dev verification
+    // Placeholder for future implementation
+    throw new Error("Deployment is no longer supported in this context");
   }
   
   const saveContractData = async (deploymentData: any) => {

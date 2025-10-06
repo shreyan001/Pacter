@@ -1,6 +1,6 @@
-# AgentNFT Minting Script
+# IndiaFreelanceLegalNFT Minting Script
 
-This script allows you to mint an AgentNFT token on the 0G network, following the ERC-7857 draft standard with support for TEE proofs.
+This script allows you to mint an IndiaFreelanceLegalNFT token on the 0G network, following the ERC-7857 draft standard with support for TEE proofs.
 
 ## Prerequisites
 
@@ -42,13 +42,13 @@ RECIPIENT_ADDRESS=optional_recipient_address
 
 The script performs the following steps:
 
-1. **Load Contract Information**: Loads the AgentNFT and TEEVerifier contract ABIs and addresses from the deployment files.
+1. **Load Contract Information**: Loads the IndiaFreelanceLegalNFT and TEEVerifier contract ABIs and addresses from the deployment files.
 
 2. **Prepare Metadata and Proofs**: Generates mock proofs and metadata for the NFT. In a production environment, this would integrate with the 0G Storage SDK and real TEE proofs.
 
 3. **Test Proof Verification**: Optionally tests the proofs with the TEEVerifier contract (this may fail with mock proofs, which is expected).
 
-4. **Mint NFT**: Calls the `mint` function on the AgentNFT contract with the generated proofs and metadata.
+4. **Mint NFT**: Calls the `mint` function on the IndiaFreelanceLegalNFT contract with the generated proofs and metadata.
 
 5. **Save Token Details**: After successful minting, saves the token details to a JSON file in the `token-details` directory.
 

@@ -34,26 +34,23 @@ const config: HardhatUserConfig = {
       gas: 100000000,
       accounts: [
         {
-          privateKey: ZG_AGENT_NFT_CREATOR_PRIVATE_KEY || "",
+          privateKey: ZG_AGENT_NFT_CREATOR_PRIVATE_KEY || "0x1000000000000000000000000000000000000000000000000000000000000001",
           balance: "1000000000000000000000",
         },
         {
-          privateKey: ZG_AGENT_NFT_ALICE_PRIVATE_KEY || "",
+          privateKey: ZG_AGENT_NFT_ALICE_PRIVATE_KEY || "0x2000000000000000000000000000000000000000000000000000000000000002",
           balance: "1000000000000000000000",
         },
         {
-          privateKey: ZG_AGENT_NFT_BOB_PRIVATE_KEY || "",
+          privateKey: ZG_AGENT_NFT_BOB_PRIVATE_KEY || "0x3000000000000000000000000000000000000000000000000000000000000003",
           balance: "1000000000000000000000",
         }
       ],
-      live: false,
-      saveDeployments: true,
-      tags: ["test", "local"]
     },
     zgTestnet: {
       url: "https://evmrpc-testnet.0g.ai",
-      accounts: [ZG_TESTNET_PRIVATE_KEY || ""],
-      chainId: 16601,
+      accounts: [ZG_TESTNET_PRIVATE_KEY || "0x1000000000000000000000000000000000000000000000000000000000000001"],
+      chainId: 16602,
       live: true,
       saveDeployments: true,
       tags: ["staging"]
@@ -62,9 +59,6 @@ const config: HardhatUserConfig = {
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
     currency: "USD",
-  },
-  etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   namedAccounts: {
     deployer: {

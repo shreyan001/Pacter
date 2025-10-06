@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import fs from "fs";
 import path from "path";
 import {
-  ESCROW_PROMPT,
+  LEGAL_PROMPT,
   MODEL_PROVIDERS,
   StorageUploadResult
 } from "./storageIntegration";
@@ -58,13 +58,13 @@ export function generateMockMetadata(count: number = 2) {
 export async function prepareAgentData(modelData: any, signer: ethers.Wallet) {
   console.log("🔄 Preparing agent data with simplified implementation...");
   
-  // Use the ESCROW_PROMPT and MODEL_PROVIDERS from storageIntegration
-  const promptHash = ethers.keccak256(ethers.toUtf8Bytes(ESCROW_PROMPT));
+  // Use the LEGAL_PROMPT and MODEL_PROVIDERS from storageIntegration
+  const promptHash = ethers.keccak256(ethers.toUtf8Bytes(LEGAL_PROMPT));
   const modelConfigHash = ethers.keccak256(ethers.toUtf8Bytes(JSON.stringify(MODEL_PROVIDERS)));
   const contextHash = ethers.keccak256(ethers.toUtf8Bytes(modelData.name + modelData.description));
   
   // Generate mock proofs for each data component (32-byte hashes)
-  const promptProof = generateMockProof(ESCROW_PROMPT);
+  const promptProof = generateMockProof(LEGAL_PROMPT);
   const modelConfigProof = generateMockProof(JSON.stringify(MODEL_PROVIDERS));
   const contextProof = generateMockProof(modelData.name + modelData.description);
   

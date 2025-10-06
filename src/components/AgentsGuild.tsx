@@ -13,6 +13,7 @@ import Image from 'next/image'
 import { useAccount } from 'wagmi'
 import PreBuiltTemplates from './ui/preBuiltTemplates';
 import PortfolioWallet from './ui/portfolioWallet';
+import Navbar from './layout/Navbar';
 
 export function AgentsGuildInterface() {
   const { address, isConnected } = useAccount()
@@ -88,13 +89,7 @@ export function AgentsGuildInterface() {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-[#1a2332] via-[#2d3748] to-[#1a202c] text-white font-mono">
-      <nav className="flex justify-between items-center p-6 border-b border-gray-600 bg-gradient-to-r from-[#4299e1] via-[#3182ce] to-[#2b6cb0] shadow-lg">
-        <div className="flex items-center space-x-3">
-          <Image src="/logo.png" alt="Pacter Logo" width={40} height={40} className="rounded-lg" />
-          <span className="text-2xl font-bold text-[#ffd700] drop-shadow-lg">Pacter</span>
-        </div>
-        <ConnectButton/>
-      </nav>
+      <Navbar />
       
       <div className="flex-1 flex p-8 gap-6">
         <div className="w-96 flex-shrink-0">

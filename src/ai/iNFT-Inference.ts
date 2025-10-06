@@ -5,7 +5,7 @@ import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
 import * as fs from "fs";
 import * as path from "path";
 
-// AgentNFT ABI - key functions for data retrieval
+// IndiaFreelanceLegalNFT ABI - key functions for data retrieval
 const AGENT_NFT_ABI = [
     "function dataDescriptionsOf(uint256 tokenId) external view returns (string[] memory)",
     "function dataHashesOf(uint256 tokenId) external view returns (bytes32[] memory)",

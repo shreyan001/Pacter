@@ -9,18 +9,18 @@ import { prepareAgentData, generateMockMetadata } from "./mockProofGenerator";
 dotenv.config();
 
 // Load contract ABI from deployment files
-let agentNFTAbi: any;
+let IndiaFreelanceLegalNFTAbi: any;
 let teeVerifierAbi: any;
 
 try {
-  // Load AgentNFT implementation ABI from build artifacts (not deployment proxy ABI)
-  const agentNFTArtifact = JSON.parse(
+  // Load IndiaFreelanceLegalNFT implementation ABI from build artifacts (not deployment proxy ABI)
+  const IndiaFreelanceLegalNFTArtifact = JSON.parse(
     fs.readFileSync(
-      path.join(__dirname, "../../build/artifacts/contracts/AgentNFT.sol/AgentNFT.json"),
+      path.join(__dirname, "../../build/artifacts/contracts/IndiaFreelanceLegalNFT.sol/IndiaFreelanceLegalNFT.json"),
       "utf8"
     )
   );
-  agentNFTAbi = agentNFTArtifact.abi;
+  IndiaFreelanceLegalNFTAbi = IndiaFreelanceLegalNFTArtifact.abi;
   
   const teeVerifierDeployment = JSON.parse(
     fs.readFileSync(
@@ -56,21 +56,21 @@ async function main() {
     
     // Get contract address from deployment file
     console.log("📄 Loading contract deployment info...");
-    const agentNFTDeployment = JSON.parse(
+    const IndiaFreelanceLegalNFTDeployment = JSON.parse(
       fs.readFileSync(
-        path.join(__dirname, "../../deployments/zgTestnet/AgentNFT.json"),
+        path.join(__dirname, "../../deployments/zgTestnet/IndiaFreelanceLegalNFT.json"),
         "utf8"
       )
     );
-    const contractAddress = agentNFTDeployment.address;
+    const contractAddress = IndiaFreelanceLegalNFTDeployment.address;
     console.log(`Contract address loaded: ${contractAddress}`);
 
     console.log(`Using contract at: ${contractAddress}`);
     console.log(`Signer address: ${signer.address}`);
-    console.log(`AgentNFT ABI loaded: ${agentNFTAbi ? 'Yes' : 'No'}`);
+    console.log(`IndiaFreelanceLegalNFT ABI loaded: ${IndiaFreelanceLegalNFTAbi ? 'Yes' : 'No'}`);
 
-    const agentNFT = new ethers.Contract(contractAddress, agentNFTAbi, signer);
-    console.log(`AgentNFT contract instance created: ${agentNFT ? 'Success' : 'Failed'}`);
+    const IndiaFreelanceLegalNFT = new ethers.Contract(contractAddress, IndiaFreelanceLegalNFTAbi, signer);
+    console.log(`IndiaFreelanceLegalNFT contract instance created: ${IndiaFreelanceLegalNFT ? 'Success' : 'Failed'}`);
     
     // Get TEEVerifier address
     console.log("🔐 Loading TEEVerifier deployment info...");
@@ -155,17 +155,17 @@ async function main() {
     console.log(`📍 Recipient address: ${recipient}`);
 
     console.log("🔍 Pre-mint validation:");
-    console.log(`- AgentNFT contract: ${agentNFT ? 'Initialized' : 'NOT INITIALIZED'}`);
-    console.log(`- AgentNFT address: ${agentNFT?.target || 'UNDEFINED'}`);
+    console.log(`- IndiaFreelanceLegalNFT contract: ${IndiaFreelanceLegalNFT ? 'Initialized' : 'NOT INITIALIZED'}`);
+    console.log(`- IndiaFreelanceLegalNFT address: ${IndiaFreelanceLegalNFT?.target || 'UNDEFINED'}`);
     console.log(`- Number of proofs: ${proofs.length}`);
     console.log(`- Number of descriptions: ${dataDescriptions.length}`);
     console.log(`- Recipient: ${recipient}`);
     console.log(`- Signer: ${signer.address}`);
     
     // Validate mint function exists
-    console.log(`- Mint function exists: ${typeof agentNFT?.mint === 'function' ? 'Yes' : 'No'}`);
-    if (typeof agentNFT?.mint !== 'function') {
-      throw new Error('AgentNFT contract mint function is not available');
+    console.log(`- Mint function exists: ${typeof IndiaFreelanceLegalNFT?.mint === 'function' ? 'Yes' : 'No'}`);
+    if (typeof IndiaFreelanceLegalNFT?.mint !== 'function') {
+      throw new Error('IndiaFreelanceLegalNFT contract mint function is not available');
     }
     
     console.log("📊 Detailed parameter validation:");
@@ -180,7 +180,7 @@ async function main() {
     console.log("⛽ Estimating gas for mint transaction...");
     let gasEstimate;
     try {
-      gasEstimate = await agentNFT.mint.estimateGas(
+      gasEstimate = await IndiaFreelanceLegalNFT.mint.estimateGas(
         proofs,
         dataDescriptions,
         recipient,
@@ -201,7 +201,7 @@ async function main() {
     console.log("🚀 Executing mint transaction...");
     let tx;
     try {
-      tx = await agentNFT.mint(
+      tx = await IndiaFreelanceLegalNFT.mint(
         proofs,
         dataDescriptions,
         recipient,
@@ -241,7 +241,7 @@ async function main() {
       .filter((log: any) => {
         try {
           // Try to parse the log as a Minted event
-          const parsedLog = agentNFT.interface.parseLog({
+          const parsedLog = IndiaFreelanceLegalNFT.interface.parseLog({
             topics: log.topics,
             data: log.data,
           });
@@ -251,7 +251,7 @@ async function main() {
         }
       })
       .map((log: any) => {
-        return agentNFT.interface.parseLog({
+        return IndiaFreelanceLegalNFT.interface.parseLog({
           topics: log.topics,
           data: log.data,
         });

@@ -3,8 +3,8 @@ import { ethers } from "hardhat";
 async function main() {
     // 1. deploy new implementation
     console.log("Deploying new implementation...");
-    const AgentNFT = await ethers.getContractFactory("AgentNFT");
-    const newImplementation = await AgentNFT.deploy();
+    const IndiaFreelanceLegalNFT = await ethers.getContractFactory("IndiaFreelanceLegalNFT");
+    const newImplementation = await IndiaFreelanceLegalNFT.deploy();
     await newImplementation.waitForDeployment();
     console.log("New implementation deployed to:", await newImplementation.getAddress());
 

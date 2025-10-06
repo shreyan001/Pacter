@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@0glabs/0g-serving-broker@^0.4.2":
-  version "0.4.2"
-  resolved "https://registry.yarnpkg.com/@0glabs/0g-serving-broker/-/0g-serving-broker-0.4.2.tgz#5c94337039bf9ad02e6f05e8183c5d3d46a3a827"
-  integrity sha512-sggvxTUNdRTYGmsHY+A1fqbGAHuynmb/GxCKLpanu8zrsxzUTZkn2Vk+cE6G6d3Hd9PfIK6RlOyK6ip76hjg5w==
+"@0glabs/0g-serving-broker@^0.4.4":
+  version "0.4.4"
+  resolved "https://registry.yarnpkg.com/@0glabs/0g-serving-broker/-/0g-serving-broker-0.4.4.tgz#d1ef53f19531710da2f13198edfb4067f354610d"
+  integrity sha512-A6FuR4zKmjt2Ct8hpNlX0EbWfMdjlNnS6YJWjJUbh5dvqPfpwx9sTfd+5rO5NILheq0DOtw7Iim/XHhLFgAEww==
   dependencies:
     "@ethersproject/bytes" "^5.7.0"
     "@ethersproject/keccak256" "^5.7.0"

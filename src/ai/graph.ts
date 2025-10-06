@@ -1,65 +1,17 @@
-import { ethers } from "ethers";
 import { StateGraph } from "@langchain/langgraph";
 import { BaseMessage, AIMessage, HumanMessage } from "@langchain/core/messages";
 import { START, END } from "@langchain/langgraph";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { ChatGroq } from "@langchain/groq";
-import { systemPrompt } from "./contractTemplate";
-import { ChatOpenAI } from "@langchain/openai";
-import {createZGComputeNetworkBroker} from "@0glabs/0g-serving-broker";
-
-import { contractsArray } from "@/lib/contractCompile";
+import { UserInputExtractionSchema, safeParseUserInput } from './zodSchemas';
 import fs from 'fs/promises';
 import path from 'path';
-import { githubVerificationNode, isGitHubVerificationRequest } from "./nodes/githubVerification";
-
 
 const model = new ChatGroq({
     modelName: "llama-3.3-70b-versatile",
     temperature: 0.7,
     apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
 });
-
-// 0G Compute Network model with official provider
-const zgProviderAddress = "0xf07240Efa67755B5311bc75784a061eDB47165Dd"; // Official llama-3.3-70b-instruct provider
-
-// Initialize 0G Compute Network model
-const initZGModel = async () => {
-    try {
-        const provider = new ethers.JsonRpcProvider("https://evmrpc-testnet.0g.ai");
-        const wallet = new ethers.Wallet(process.env.ZG_PRIVATE_KEY!, provider);
-        const broker = await createZGComputeNetworkBroker(wallet);
-        
-        // Acknowledge the provider
-        await broker.inference.acknowledgeProviderSigner(zgProviderAddress);
-        
-        // Get service metadata
-        const { endpoint, model: modelName } = await broker.inference.getServiceMetadata(zgProviderAddress);
-        
-        return { broker, endpoint, modelName };
-    } catch (error) {
-        console.error("Failed to initialize 0G model:", error);
-        return null;
-    }
-};
-
-// Create 0G model instance
-const createZGChatModel = async (question: string) => {
-    const zgConfig = await initZGModel();
-    if (!zgConfig) return null;
-    
-    const { broker, endpoint, modelName } = zgConfig;
-    const headers = await broker.inference.getRequestHeaders(zgProviderAddress, question);
-    
-    return new ChatOpenAI({
-        modelName: modelName,
-        temperature: 0.7,
-        openAIApiKey: "", // Empty string as per 0G docs
-        configuration: {
-            baseURL: endpoint,
-        }
-    });
-};
 
 type guildState = {
     input: string,
@@ -68,7 +20,31 @@ type guildState = {
     messages?: any[] | null,
     operation?: string,
     result?: string,
-    githubVerification?: any,
+    walletAddress?: string, // Add wallet address to state
+    // Stage management for conversation flow
+    stage?: 'initial' | 'information_collection' | 'contract_creation' | 'payment_collection' | 'completed',
+    information_collection?: boolean,
+    // Project information for freelance website development
+    projectInfo?: {
+        projectName?: string,
+        projectDescription?: string,
+        deliverables?: string[], // e.g., ["GitHub repository", "Live deployment", "Documentation"]
+        timeline?: string,
+        requirements?: string,
+        revisions?: number,
+    },
+    clientInfo?: {
+        clientName?: string,
+        walletAddress?: string,
+    },
+    financialInfo?: {
+        paymentAmount?: number, // Payment to freelancer in USD
+        platformFees?: number, // DocPact platform fees
+        escrowFee?: number, // Escrow service fee (0.2% of payment amount)
+        totalEscrowAmount?: number, // Total amount client needs to deposit
+        currency?: string, // Currency for the payment (default: USD)
+    },
+    contractReady?: boolean,
 }
 
 export default function nodegraph() {
@@ -80,38 +56,29 @@ export default function nodegraph() {
             contractData: { value: null },
             chatHistory: { value: null },
             operation: { value: null },
-            githubVerification: { value: null }
+            walletAddress: { value: null },
+            projectInfo: { value: null },
+            clientInfo: { value: null },
+            financialInfo: { value: null },
+            contractReady: { value: null }
         }
     });
 
     // Initial Node: Routes user requests to the appropriate node
     graph.addNode("initial_node", async (state: guildState) => {
-        const SYSTEM_TEMPLATE = `You are an AI agent for Pacter, a revolutionary platform that transforms human chat into structured smart contracts. Pacter creates programmable escrow agreements for digital goods, services, rentals, and micro-loans using autonomous agents on the 0G blockchain.
+        const SYSTEM_TEMPLATE = `You are an AI agent for Pacter, a platform focused on contract creation and smart contract management.
 
-Currently, Pacter supports:
-- NFT to 0G token exchanges with secure escrow
-- 0G to NFT trading with automated verification
-
-Future possibilities include:
-- Autonomous agents acting as incorruptible middlemen for digital agreements
-- Programmable trust for complex multi-party transactions
-- AI-powered contract verification and execution
-- Trustless deals validated by APIs and browser agents
-- Templates for game keys, SaaS subscriptions, domain leases, gift cards, bounties, and equipment rentals
-- Smart contract automation for recurring digital services
-
-Based on the user's input, respond with ONLY ONE of the following words:
+Based on the user's input and conversation history, respond with ONLY ONE of the following words:
+- "contract_creation" if the user wants to create a contract, set up a project agreement, or establish work terms
 - "contribute_node" if the user wants to report any errors or contribute to the project
-- "escrow_Node" if the request is related to creating escrow smart contracts.
-- "github_verification" if the request is about verifying GitHub repositories or deployments
 - "unknown" if the request doesn't fit into any of the above categories
 
 Context for decision-making:
-- Escrow smart contracts involve secure peer-to-peer exchanges between NFTs and 0G tokens on the 0G blockchain.
-- The platform currently supports only NFT to 0G token exchanges with automated verification and trustless execution.
-- User contributions can include reporting errors, suggesting improvements, or offering to help develop the project.
+- Contract creation involves setting up agreements, defining project terms, milestones, payments, and deliverables
+- User contributions can include reporting errors, suggesting improvements, or offering to help develop the project
+- Use the conversation history to understand the user's intent and provide continuity
 
-Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node", "github_verification", or "unknown". Provide no additional text or explanation.`;
+Respond strictly with ONLY ONE of these words: "contract_creation", "contribute_node", or "unknown". Provide no additional text or explanation.`;
 
         const prompt = ChatPromptTemplate.fromMessages([
             ["system", SYSTEM_TEMPLATE],
@@ -125,39 +92,31 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
 
         const content = response.content as string;
         
-        // Check if it's a GitHub verification request using the helper function
-        if (isGitHubVerificationRequest(state.input)) {
-            return { messages: [response.content], operation: "github_verification" };
+        // Check if it's a contract creation request
+        if (content.includes("contract_creation")) {
+            return { 
+                messages: [response.content], 
+                operation: "contract_creation",
+                // Preserve chat history
+                chatHistory: state.chatHistory,
+                walletAddress: state.walletAddress
+            };
         }
         
         if (content.includes("contribute_node")) {
-            return { messages: [response.content], operation: "contribute_node" };
-        } else if (content.includes("escrow_Node")) {
-            return { messages: [response.content], operation: "escrow_Node" };
-        } else if (content.includes("github_verification")) {
-            return { messages: [response.content], operation: "github_verification" };
+            return { 
+                messages: [response.content], 
+                operation: "contribute_node",
+                // Preserve chat history
+                chatHistory: state.chatHistory,
+                walletAddress: state.walletAddress
+            };
         } else if (content.includes("unknown")) {
-            const CONVERSATIONAL_TEMPLATE = `You are an AI assistant for Pacter, a revolutionary platform that transforms human chat into structured smart contracts. Pacter creates programmable escrow agreements for digital goods, services, rentals, and micro-loans using autonomous agents on the 0G blockchain.
+            const CONVERSATIONAL_TEMPLATE = `You are an AI assistant for Pacter, a platform focused on smart contract creation and automated contract management.
 
-            Key Features:
-            - Smart Contract Generation: Transform natural language conversations into secure escrow smart contracts on 0G blockchain
-            - NFT to 0G Token Support: Currently supports NFT to 0G token exchanges with automated verification
-            - User Interaction: Conversational interface for creating escrow agreements without technical knowledge
-            - Security Focus: All contracts include built-in verification and trustless execution mechanisms
-            - Autonomous Agents: AI-powered agents that act as incorruptible middlemen for digital agreements
+Use the conversation history to provide contextual responses. When users ask about topics outside of contract creation or project contributions, provide helpful information while gently guiding them toward Pacter's contract creation capabilities.
 
-            Current Capabilities:
-            - NFT to 0G token exchanges with secure escrow
-            - 0G to NFT trading with automated verification
-            - Automated contract deployment with security verification on 0G blockchain
-            - Real-time chat-to-contract conversion using AI
-
-            Future Possibilities:
-            - Programmable trust for complex multi-party digital agreements
-            - Templates for game keys, SaaS subscriptions, domain leases, and more
-            - API and browser agent verification for real-world use cases
-
-            If the user's request is unrelated to our services, politely explain that we cannot process their request and suggest something related to Pacter that they might find interesting. Always maintain a friendly and helpful tone, and don't give long responses; keep it short or medium length and concise in markdown format.`;
+Respond in a friendly, professional manner and offer to help with contract creation if appropriate. Reference previous conversation context when relevant.`;
 
             const conversationalPrompt = ChatPromptTemplate.fromMessages([
                 ["system", CONVERSATIONAL_TEMPLATE],
@@ -167,8 +126,229 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
             const summaryModel = model.withConfig({ runName: "Summarizer" });
             const conversationalResponse = await conversationalPrompt.pipe(summaryModel).invoke({ input: state.input, chat_history: state.chatHistory });
 
-            return { result: conversationalResponse.content as string, messages: [conversationalResponse.content] };
+            return { 
+                result: conversationalResponse.content as string, 
+                messages: [conversationalResponse.content],
+                // Preserve chat history
+                chatHistory: state.chatHistory,
+                walletAddress: state.walletAddress
+            };
         } 
+    });
+
+    // **D. LangGraph Node Implementation**
+
+    // Node: Interactive bulk extraction and validation (using descriptions/examples)
+    graph.addNode("collect_initiator_info", async (state: guildState) => {
+        // Include chat history in the prompt for better context
+        const promptStr = buildInfoPrompt(InitiatorContractSchema);
+        const prompt = ChatPromptTemplate.fromMessages([
+            ["system", promptStr],
+            new MessagesPlaceholder({ variableName: "chat_history", optional: true }),
+            ["human", state.input]
+        ]);
+        try {
+            const response = await prompt.pipe(model).invoke({ 
+                input: state.input,
+                chat_history: state.chatHistory 
+            });
+            let extracted = {};
+            try {
+                const contentString = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+                extracted = JSON.parse(contentString.replace(/```json|```/g, "").trim());
+                const check = InitiatorContractSchema.safeParse(extracted);
+                if (!check.success) {
+                    // Produce missing/error fields with user-friendly descriptions
+                    const missing = check.error.errors.map(e => {
+                        const fieldPath = e.path.join('.');
+                        let message = e.message;
+                        let userFriendlyField = fieldPath;
+                        
+                        // Replace technical field names with user-friendly labels
+                        if (fieldPath === 'parties.partyA.email') {
+                            userFriendlyField = 'Your email address';
+                            if (e.code === 'invalid_string') {
+                                message = 'must be a valid email format (e.g., user@example.com)';
+                            }
+                        } else if (fieldPath === 'parties.partyA.walletAddress') {
+                            userFriendlyField = 'Your wallet address';
+                            if (e.message.includes('start')) {
+                                message = 'must start with "0x"';
+                            } else if (e.message.includes('length')) {
+                                message = 'must be exactly 42 characters long';
+                            }
+                        } else if (fieldPath === 'parties.partyA.name') {
+                            userFriendlyField = 'Your full name';
+                            message = 'is required';
+                        } else if (fieldPath === 'projectDetails.deliverables') {
+                            userFriendlyField = 'Project deliverables';
+                            if (e.code === 'invalid_type') {
+                                message = 'must be provided as a list of items';
+                            }
+                        } else if (fieldPath === 'projectDetails.timeline') {
+                            userFriendlyField = 'Project timeline';
+                            message = 'is required (e.g., "30 days")';
+                        } else if (fieldPath === 'projectDetails.startDate') {
+                            userFriendlyField = 'Project start date';
+                            message = 'is required (format: YYYY-MM-DD)';
+                        } else if (fieldPath === 'projectDetails.endDate') {
+                            userFriendlyField = 'Project end date';
+                            message = 'is required (format: YYYY-MM-DD)';
+                        } else if (fieldPath === 'escrow.totalAmount') {
+                            userFriendlyField = 'Total contract amount';
+                            message = 'is required';
+                        } else if (fieldPath === 'escrow.currency') {
+                            userFriendlyField = 'Currency';
+                            message = 'is required (e.g., USDC, INR, ETH)';
+                        } else if (fieldPath === 'name') {
+                            userFriendlyField = 'Contract name';
+                            message = 'is required';
+                        } else if (fieldPath === 'description') {
+                            userFriendlyField = 'Project description';
+                            message = 'is required';
+                        } else if (fieldPath === 'projectType') {
+                            userFriendlyField = 'Project type';
+                            message = 'is required';
+                        }
+                        
+                        return `${userFriendlyField} ${message}`;
+                    });
+                    return { 
+                        stage: "need_more", 
+                        missingFields: missing, 
+                        messages: ["Please correct the following validation errors:\n" + missing.join("\n")],
+                        validationErrors: missing,
+                        formData: extracted,
+                        // Preserve chat history for context
+                        chatHistory: state.chatHistory
+                    };
+                }
+                return { 
+                    data: check.data, 
+                    stage: "validate", 
+                    messages: ["Great! I've collected all the necessary information. Let me prepare your contract details for review."],
+                    formData: check.data,
+                    // Preserve chat history for context
+                    chatHistory: state.chatHistory
+                };
+            } catch (err) {
+                return { 
+                    stage: "error", 
+                    messages: ["Could not parse contract info. Please re-enter details."],
+                    validationErrors: ["Invalid JSON format"],
+                    chatHistory: state.chatHistory
+                };
+            }
+        } catch {
+            return { 
+                stage: "error", 
+                messages: ["Could not interact with LLM."],
+                validationErrors: ["LLM connection error"],
+                chatHistory: state.chatHistory
+            };
+        }
+    });
+
+    // Node: Request missing fields, with metadata
+    graph.addNode("request_missing_info", async (state: guildState) => {
+        return {
+            messages: [
+                "To proceed, please provide these details:\n" + state.missingFields?.join("\n")
+            ],
+            stage: "waiting",
+            // Preserve all state information for continuity
+            chatHistory: state.chatHistory,
+            formData: state.formData,
+            validationErrors: state.validationErrors
+        };
+    });
+
+    // Node: Confirm and finalize
+    graph.addNode("confirm", async (state: guildState) => {
+        const input = state.input?.toLowerCase().trim();
+        
+        // Only proceed to finalization with explicit confirmation
+        if (input && (input === "yes" || input === "y" || input === "confirm" || input.includes("yes") || input.includes("confirm"))) {
+            return { 
+                stage: "finalize", 
+                confirmed: true,
+                // Preserve chat history
+                chatHistory: state.chatHistory,
+                walletAddress: state.walletAddress
+            };
+        } else if (input && (input === "no" || input === "n" || input === "edit" || input.includes("no") || input.includes("edit"))) {
+            return { 
+                stage: "collect_initiator_info", 
+                confirmed: false, 
+                messages: ["Please provide the correct information."],
+                // Preserve chat history
+                chatHistory: state.chatHistory,
+                walletAddress: state.walletAddress
+            };
+        } else {
+            // For any other input, show contract summary and ask for explicit confirmation
+            const contractSummary = JSON.stringify(state.data, null, 2);
+            const confirmationMessage = `
+## Contract Summary
+
+Here's your contract setup:
+
+\`\`\`json
+${contractSummary}
+\`\`\`
+
+Please review the details above. Reply with:
+- **"yes"** or **"confirm"** to proceed with contract creation
+- **"no"** or **"edit"** to make changes
+- Specify any changes you'd like to make
+
+Is this correct?`;
+
+            return {
+                messages: [confirmationMessage],
+                stage: "awaiting_confirmation",
+                confirmed: null, // Explicitly set to null to indicate waiting
+                // Preserve chat history
+                chatHistory: state.chatHistory,
+                walletAddress: state.walletAddress
+            };
+        }
+    });
+
+
+
+    // Node: Validation and confirmation
+    graph.addNode("validate", async (state: guildState) => {
+        const data = state.data;
+        const summary = `Contract Summary:\n${JSON.stringify(data, null, 2)}`;
+        return { 
+            stage: "confirm", 
+            messages: [summary + "\n\nDoes this look correct? (yes/no)"],
+            // Preserve chat history
+            chatHistory: state.chatHistory,
+            walletAddress: state.walletAddress
+        };
+    });
+
+    // Node: Finalize contract
+    graph.addNode("finalize", async (state: guildState) => {
+        const contractId = `contract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const contractData = {
+            id: contractId,
+            data: state.data,
+            timestamp: new Date().toISOString(),
+            status: 'finalized'
+        };
+        
+        return { 
+            stage: "complete", 
+            contractId,
+            contractData,
+            messages: [`Contract finalized successfully! Contract ID: ${contractId}`],
+            // Preserve chat history
+            chatHistory: state.chatHistory,
+            walletAddress: state.walletAddress
+        };
     });
 
     //@ts-ignore
@@ -181,23 +361,55 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
                 return "end";
             }
 
-            if (state.operation === "contribute_node") {
+            if (state.operation === "contract_creation") {
+                return "collect_initiator_info";
+            } else if (state.operation === "contribute_node") {
                 return "contribute_node";
-            } else if (state.operation === "escrow_Node") {
-                return "escrow_node";
-            } else if (state.operation === "github_verification") {
-                return "github_verification";
             } else if (state.result) {
                 return "end";
             }
         },
         {
+            collect_initiator_info: "collect_initiator_info",
             contribute_node: "contribute_node",
-            escrow_node: "escrow_node",
-            github_verification: "github_verification",
             end: END,
         }
     );
+
+    // **E. Routing**
+    //@ts-ignore
+    graph.addConditionalEdges("collect_initiator_info",
+        (state) => {
+            if (state.stage === "need_more") return "request_missing_info";
+            if (state.stage === "validate") return "validate";
+            return "confirm";
+        },
+        { 
+            request_missing_info: "request_missing_info", 
+            validate: "validate",
+            confirm: "confirm" 
+        }
+    );
+    //@ts-ignore
+    graph.addEdge("request_missing_info", END); // Wait for user
+    //@ts-ignore
+    graph.addEdge("validate", "confirm"); // validate goes to confirm
+    //@ts-ignore
+    graph.addConditionalEdges("confirm",
+        (state) => {
+            if (state.confirmed === true) return "finalize";
+            if (state.confirmed === false) return "collect_initiator_info";
+            // If confirmed is null or undefined, end the flow to wait for user input
+            return "end";
+        },
+        { 
+            finalize: "finalize", 
+            collect_initiator_info: "collect_initiator_info",
+            end: END
+        }
+    );
+    //@ts-ignore
+    graph.addEdge("finalize", END);
 
     // Add the contribute_node
     graph.addNode("contribute_node", async (state: guildState) => {
@@ -227,102 +439,47 @@ Respond strictly with ONLY ONE of these words: "contribute_node", "escrow_Node",
 
             const contributionData = JSON.parse(response.content as string);
 
-            // Save the contribution data to a file
+            // Store contribution data in state instead of file system
             const timestamp = new Date().toISOString().replace(/:/g, '-');
-            const fileName = `contribution_${timestamp}.json`;
-            const filePath = path.join(process.cwd(), 'contributions', fileName);
-
-            await fs.mkdir(path.dirname(filePath), { recursive: true });
-            await fs.writeFile(filePath, JSON.stringify(contributionData, null, 2));
+            const contributionId = `contribution_${timestamp}`;
+            
+            const structuredContribution = {
+                id: contributionId,
+                ...contributionData,
+                submittedAt: new Date().toISOString(),
+                status: 'received'
+            };
 
             return { 
                 result: "Thank you for your contribution. Your response has been received successfully and will be reviewed by our team.",
-                messages: [response.content]
+                contributionData: structuredContribution,
+                messages: [response.content],
+                // Preserve chat history
+                chatHistory: state.chatHistory,
+                walletAddress: state.walletAddress
             };
         } catch (error) {
             console.error("Error in contribute_node:", error);
             return { 
                 result: "Your error has been received successfully and will be reviewed by our team.",
-                messages: ["Error processing contribution"]
-            };
-        }
-    });
-
-    // Add the Escrow_Node with 0G model integration
-    graph.addNode("escrow_node", async (state: guildState) => {
-        console.log("Generating Escrow contract");
-
-        // Since contractsArray now has only one entry, directly use it
-        const context = contractsArray[0].contractCode;
-
-        const escrowPrompt = ChatPromptTemplate.fromMessages([
-            ["system", systemPrompt],
-            new MessagesPlaceholder({ variableName: "chat_history", optional: true }),
-            ["human", "{input}"]
-        ]);
-
-        try {
-            // Try 0G model first, fallback to Groq if needed
-            let response;
-            const zgModel = await createZGChatModel(state.input);
-            
-            if (zgModel && process.env.ZG_PRIVATE_KEY) {
-                console.log("Using 0G Compute Network model");
-                response = await escrowPrompt.pipe(zgModel).invoke({ 
-                    input: state.input, 
-                    chat_history: state.chatHistory,
-                    context: context
-                });
-            } else {
-                console.log("Fallback to Groq model");
-                response = await escrowPrompt.pipe(new ChatGroq({
-                    modelName: "llama-3.3-70b-versatile",
-                    temperature: 0.9,
-                    apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-                })).invoke({ 
-                    input: state.input, 
-                    chat_history: state.chatHistory,
-                    context: context
-                });
-            }
-
-            const content = response.content as string;
-
-            const match = content.match(/```solidity[\s\S]*?```/); // Updated regex to match the 'solidity' language specifier
-            let contractData = null;
-            let resultData = content;
-
-            if (match) {
-                // Remove the backticks and 'solidity' language specifier
-                contractData = match[0].replace(/```solidity\s?|\s?```/g, '').trim();
-                // Remove the contract code from the result
-                resultData = content.replace(match[0], '').trim();
-            }
-
-            return { 
-                contractData: contractData,
-                result: resultData,
-                messages: [content] 
-            };
-        } catch (error) {
-            console.error("Error in escrow_node:", error);
-            return { 
-                result: "Error generating Escrow contract", 
-                messages: ["I apologize, but there was an error generating the Escrow contract. Please try again or provide more information about your requirements."]
+                messages: ["Error processing contribution"],
+                // Preserve chat history
+                chatHistory: state.chatHistory,
+                walletAddress: state.walletAddress
             };
         }
     });
 
     // Add the GitHub verification node
-    graph.addNode("github_verification", githubVerificationNode);
+    // Removed - no longer needed
 
     //@ts-ignore    
     graph.addEdge("contribute_node", END);
-    //@ts-ignore
-    graph.addEdge("escrow_node", END);
-    //@ts-ignore
-    graph.addEdge("github_verification", END);
 
-    const data = graph.compile();
-    return data;
+    // Compile the graph with recursion limit to prevent infinite loops
+    const compiledGraph = graph.compile({
+        recursionLimit: 50
+    });
+    
+    return compiledGraph;
 }

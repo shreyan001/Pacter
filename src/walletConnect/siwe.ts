@@ -18,8 +18,8 @@ import {
 
   // Define 0G Galileo Testnet custom chain
   export const ogGalileoTestnet = defineChain({
-    id: 16601,
-    name: '0G-Galileo-Testnet',
+    id: 16602,
+    name: '0G-Testnet-Galileo',
     nativeCurrency: {
       decimals: 18,
       name: '0G Token',

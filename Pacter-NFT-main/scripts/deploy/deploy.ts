@@ -19,8 +19,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const indexerURL = process.env.ZG_INDEXER_URL || "https://indexer-storage-testnet-turbo.0g.ai";
 
     // 3. Prepare initialization data
-    const AgentNFTFactory = await hre.ethers.getContractFactory("AgentNFT");
-    const initData = AgentNFTFactory.interface.encodeFunctionData("initialize", [
+    const IndiaFreelanceLegalNFTFactory = await hre.ethers.getContractFactory("IndiaFreelanceLegalNFT");
+    const initData = IndiaFreelanceLegalNFTFactory.interface.encodeFunctionData("initialize", [
         nftName,
         nftSymbol,
         verifierAddress,
@@ -28,10 +28,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         indexerURL
     ]);
 
-    // 4. Deploy AgentNFT with beacon proxy
+    // 4. Deploy IndiaFreelanceLegalNFT with beacon proxy
     await deployInBeaconProxy(
         hre,
-        CONTRACTS.AgentNFT,
+        CONTRACTS.IndiaFreelanceLegalNFT,
         false,  // onlyBeacon
         [],     // constructor args
         initData // initialization data
@@ -40,7 +40,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log("Deployment and initialization complete");
 };
 
-func.tags = [CONTRACTS.AgentNFT.name, "prod"];
+func.tags = [CONTRACTS.IndiaFreelanceLegalNFT.name, "prod"];
 func.dependencies = [];
 
 export default func;

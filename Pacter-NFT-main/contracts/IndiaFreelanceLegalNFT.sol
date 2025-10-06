@@ -7,13 +7,13 @@ import {IERC7857Metadata} from "./interfaces/IERC7857Metadata.sol";
 import {IERC7857DataVerifier, PreimageProofOutput, TransferValidityProofOutput} from "./interfaces/IERC7857DataVerifier.sol";
 import {Utils} from "./Utils.sol";
 
-contract AgentNFT is 
+contract IndiaFreelanceLegalNFT is 
     AccessControlEnumerableUpgradeable,
     IERC7857, 
     IERC7857Metadata 
 {
-    /// @custom:storage-location erc7201:agent.storage.AgentNFT
-    struct AgentNFTStorage {
+    /// @custom:storage-location erc7201:agent.storage.IndiaFreelanceLegalNFT
+    struct IndiaFreelanceLegalNFTStorage {
         // Token data
         mapping(uint256 => TokenData) tokens;
         uint256 nextTokenId;
@@ -37,11 +37,11 @@ contract AgentNFT is
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     
-    // keccak256(abi.encode(uint(keccak256("agent.storage.AgentNFT")) - 1)) & ~bytes32(uint(0xff))
+    // keccak256(abi.encode(uint(keccak256("agent.storage.IndiaFreelanceLegalNFT")) - 1)) & ~bytes32(uint(0xff))
     bytes32 private constant AGENT_NFT_STORAGE_LOCATION = 
         0x4aa80aaafbe0e5fe3fe1aa97f3c1f8c65d61f96ef1aab2b448154f4e07594600;
 
-    function _getAgentStorage() private pure returns (AgentNFTStorage storage $) {
+    function _getAgentStorage() private pure returns (IndiaFreelanceLegalNFTStorage storage $) {
         assembly {
             $.slot := AGENT_NFT_STORAGE_LOCATION
         }
@@ -66,7 +66,7 @@ contract AgentNFT is
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
         
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         $.name = name_;
         $.symbol = symbol_;
         $.chainURL = chainURL_;
@@ -97,13 +97,13 @@ contract AgentNFT is
         external 
         onlyRole(ADMIN_ROLE) 
     {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         $.chainURL = newChainURL;
         $.indexerURL = newIndexerURL;
     }
 
     function update(uint256 tokenId, bytes[] calldata proofs) external {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         TokenData storage token = $.tokens[tokenId];
         require(token.owner == msg.sender, "Not owner");
 
@@ -136,7 +136,7 @@ contract AgentNFT is
         string[] calldata dataDescriptions,
         address to
     ) external payable returns (uint256 tokenId) {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         
         require(
             dataDescriptions.length == proofs.length,
@@ -181,7 +181,7 @@ contract AgentNFT is
         uint256 tokenId,
         bytes[] calldata proofs
     ) external {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         require(to != address(0), "Zero address");
         require($.tokens[tokenId].owner == msg.sender, "Not owner");
     
@@ -214,7 +214,7 @@ contract AgentNFT is
     }
 
     function transferPublic(address to, uint256 tokenId) external {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         require(to != address(0), "Zero address");
         require($.tokens[tokenId].owner == msg.sender, "Not owner");
         $.tokens[tokenId].owner = to;
@@ -226,7 +226,7 @@ contract AgentNFT is
         uint256 tokenId,
         bytes[] calldata proofs
     ) external payable returns (uint256) {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         require(to != address(0), "Zero address");
         require($.tokens[tokenId].owner == msg.sender, "Not owner");
 
@@ -268,7 +268,7 @@ contract AgentNFT is
         address to,
         uint256 tokenId
     ) external payable returns (uint256) {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         require(to != address(0), "Zero address");
         require($.tokens[tokenId].owner == msg.sender, "Not owner");
 
@@ -284,28 +284,28 @@ contract AgentNFT is
     }
 
     function authorizeUsage(uint256 tokenId, address user) external {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         require($.tokens[tokenId].owner == msg.sender, "Not owner");
         $.tokens[tokenId].authorizedUsers.push(user);
         emit AuthorizedUsage(tokenId, user);
     }
 
     function ownerOf(uint256 tokenId) external view returns (address) {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         TokenData storage token = $.tokens[tokenId];
         require(token.owner != address(0), "Token not exist");
         return token.owner;
     }
 
     function authorizedUsersOf(uint256 tokenId) external view returns (address[] memory) {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         TokenData storage token = $.tokens[tokenId];
         require(token.owner != address(0), "Token not exist");
         return token.authorizedUsers;
     }
 
     function tokenURI(uint256 tokenId) external view returns (string memory) {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         require(_exists(tokenId), "Token does not exist");
 
         return string(
@@ -324,14 +324,14 @@ contract AgentNFT is
     }
 
     function dataHashesOf(uint256 tokenId) public view returns (bytes32[] memory) {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         TokenData storage token = $.tokens[tokenId];
         require(token.owner != address(0), "Token not exist");
         return token.dataHashes;
     }
 
     function dataDescriptionsOf(uint256 tokenId) public view returns (string[] memory) {
-        AgentNFTStorage storage $ = _getAgentStorage();
+        IndiaFreelanceLegalNFTStorage storage $ = _getAgentStorage();
         TokenData storage token = $.tokens[tokenId];
         require(token.owner != address(0), "Token not exist");
         return token.dataDescriptions;

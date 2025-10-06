@@ -1,65 +1,6 @@
 'use server'
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const CONTRACTS_FILE = path.join(process.cwd(), 'src', 'lib', 'deployedContracts.json');
-
-// Environment detection
-const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
-
-// In-memory cache for contracts (used in production/Vercel)
-let contractsCache: DeployedContract[] = []
-let cacheInitialized = false;
-
-// Initialize cache from file if possible (development) or start empty (production)
-function initializeCache() {
-  if (cacheInitialized) return;
-  
-  if (!isProduction) {
-    // Development: Use file system
-    try {
-      if (fs.existsSync(CONTRACTS_FILE)) {
-        const fileContent = fs.readFileSync(CONTRACTS_FILE, 'utf-8');
-        contractsCache = JSON.parse(fileContent);
-        console.log('Development: Cache initialized from file with', contractsCache.length, 'contracts');
-      } else {
-        contractsCache = [];
-        console.log('Development: Cache initialized empty (no file found)');
-      }
-    } catch (error) {
-      console.log('Development: Could not read from file system, starting with empty cache:', error.message);
-      contractsCache = [];
-    }
-  } else {
-    // Production: Start with empty cache (will be populated from client requests)
-    contractsCache = [];
-    console.log('Production: Cache initialized empty (memory-only mode)');
-  }
-  
-  cacheInitialized = true;
-}
-
-interface DeployedContract {
-  id: string;
-  name: string;
-  contractAddress: string;
-  abi: any[];
-  bytecode: string;
-  contractType: string;
-  partyA: string;
-  partyB?: string;
-  deployedAt: string;
-  transactionHash?: string;
-  networkId?: string;
-  description?: string;
-  partyASignatureStatus?: boolean;
-  partyBSignatureStatus?: boolean;
-  partyAAddress?: string;
-  partyBAddress?: string;
-  partyASignature?: string;
-  partyBSignature?: string;
-}
+import { RedisService, DeployedContract } from '@/lib/redisService';
 
 // GET - Retrieve all deployed contracts or a specific contract by ID
 export async function GET(request: NextRequest) {
@@ -67,34 +8,19 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const contractId = searchParams.get('id');
     
-    // Log environment for debugging
-    console.log('API Environment:', {
-      NODE_ENV: process.env.NODE_ENV,
-      VERCEL: process.env.VERCEL,
-      isProduction: isProduction ? 'PRODUCTION MODE' : 'DEVELOPMENT MODE',
+    console.log('API GET request:', {
       requestedContractId: contractId,
-      cacheSize: contractsCache.length
+      timestamp: new Date().toISOString()
     });
     
-    // Initialize cache from file if possible
-    initializeCache();
-    
     if (contractId) {
-      const contract = contractsCache.find(c => c.id === contractId);
+      const contract = await RedisService.getContractById(contractId);
       
       if (!contract) {
-        console.log('Contract not found in server cache:', contractId);
-        console.log('Available contracts in cache:', contractsCache.map(c => c.id));
-        
-        // In production, this is expected - contracts should be managed via localStorage on client
-        if (isProduction) {
-          console.log('PRODUCTION: Contract should be retrieved from client localStorage, not server cache');
-        }
-        
+        console.log('Contract not found in Redis:', contractId);
         return NextResponse.json({ 
           error: 'Contract not found', 
-          message: isProduction ? 'Contract should be available in localStorage on client side' : 'Contract not found in development cache',
-          environment: isProduction ? 'production' : 'development'
+          message: 'Contract not found in Redis database'
         }, { status: 404 });
       }
       
@@ -102,10 +28,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(contract);
     }
     
-    console.log('Returning all contracts, count:', contractsCache.length);
-    return NextResponse.json(contractsCache);
+    const allContracts = await RedisService.getAllContracts();
+    console.log('Returning all contracts, count:', allContracts.length);
+    return NextResponse.json(allContracts);
   } catch (error) {
-    console.error('Error reading contracts:', error);
+    console.error('Error reading contracts from Redis:', error);
     return NextResponse.json({ error: 'Failed to read contracts' }, { status: 500 });
   }
 }
@@ -145,25 +72,12 @@ export async function POST(request: NextRequest) {
     
     console.log('New contract object:', JSON.stringify(newContract, null, 2));
     
-    // Initialize cache and add new contract
-    initializeCache();
+    // Add contract to Redis
+    const success = await RedisService.addContract(newContract);
     
-    // Add new contract to cache
-    contractsCache.push(newContract);
-    console.log('Total contracts after adding new one:', contractsCache.length);
-    
-    // Write to file only in development mode
-    if (!isProduction) {
-      try {
-        const jsonString = JSON.stringify(contractsCache, null, 2);
-        console.log('Development: Writing JSON string length:', jsonString.length);
-        fs.writeFileSync(CONTRACTS_FILE, jsonString);
-        console.log('Development: Successfully wrote contracts file');
-      } catch (writeError) {
-        console.log('Development: Error writing to file:', writeError.message);
-      }
-    } else {
-      console.log('Production: Contract saved to memory cache only');
+    if (!success) {
+      console.error('Failed to store contract in Redis');
+      return NextResponse.json({ error: 'Failed to store contract in Redis' }, { status: 500 });
     }
     
     console.log('Contract storage completed successfully');
@@ -189,30 +103,15 @@ export async function PUT(request: NextRequest) {
     
     const updateData = await request.json();
     
-    // Initialize cache
-    initializeCache();
+    // Update contract in Redis
+    const updatedContract = await RedisService.updateContract(contractId, updateData);
     
-    // Find and update contract in cache
-    const contractIndex = contractsCache.findIndex(c => c.id === contractId);
-    if (contractIndex === -1) {
+    if (!updatedContract) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
     }
     
-    contractsCache[contractIndex] = { ...contractsCache[contractIndex], ...updateData };
-    
-    // Write to file only in development mode
-    if (!isProduction) {
-      try {
-        fs.writeFileSync(CONTRACTS_FILE, JSON.stringify(contractsCache, null, 2));
-        console.log('Development: Contract updated in file');
-      } catch (writeError) {
-        console.log('Development: Error writing to file:', writeError.message);
-      }
-    } else {
-      console.log('Production: Contract updated in memory cache only');
-    }
-    
-    return NextResponse.json({ success: true, contract: contractsCache[contractIndex] });
+    console.log('Contract updated successfully in Redis');
+    return NextResponse.json({ success: true, contract: updatedContract });
   } catch (error) {
     console.error('Error updating contract:', error);
     return NextResponse.json({ error: 'Failed to update contract' }, { status: 500 });
@@ -235,46 +134,19 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Valid party (A or B) is required' }, { status: 400 });
     }
     
-    // Initialize cache
-    initializeCache();
+    // Update signature status in Redis
+    const updatedContract = await RedisService.updateSignatureStatus(
+      contractId,
+      party as 'A' | 'B',
+      { address, signature, signatureStatus }
+    );
     
-    // Find contract in cache
-    const contractIndex = contractsCache.findIndex(c => c.id === contractId);
-    if (contractIndex === -1) {
+    if (!updatedContract) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
     }
     
-    // Update signature data
-    const updateFields: Partial<DeployedContract> = {};
-    
-    if (party === 'A') {
-      updateFields.partyASignatureStatus = signatureStatus;
-      if (address) updateFields.partyAAddress = address;
-      if (signature) updateFields.partyASignature = signature;
-    } else {
-      updateFields.partyBSignatureStatus = signatureStatus;
-      if (address) updateFields.partyBAddress = address;
-      if (signature) updateFields.partyBSignature = signature;
-      if (address && !contractsCache[contractIndex].partyB) {
-        updateFields.partyB = address;
-      }
-    }
-    
-    contractsCache[contractIndex] = { ...contractsCache[contractIndex], ...updateFields };
-    
-    // Write to file only in development mode
-     if (!isProduction) {
-       try {
-         fs.writeFileSync(CONTRACTS_FILE, JSON.stringify(contractsCache, null, 2));
-         console.log('Development: Contract signature updated in file');
-       } catch (writeError) {
-         console.log('Development: Error writing to file:', writeError.message);
-       }
-     } else {
-       console.log('Production: Contract signature updated in memory cache only');
-     }
-    
-    return NextResponse.json({ success: true, contract: contractsCache[contractIndex] });
+    console.log('Contract signature updated successfully in Redis');
+    return NextResponse.json({ success: true, contract: updatedContract });
   } catch (error) {
     console.error('Error updating signature status:', error);
     return NextResponse.json({ error: 'Failed to update signature status' }, { status: 500 });
@@ -291,29 +163,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Contract ID is required' }, { status: 400 });
     }
 
-    // Initialize cache
-    initializeCache();
+    // Delete contract from Redis
+    const deletedContract = await RedisService.deleteContract(contractId);
 
-    // Find and remove the contract from cache
-    const contractIndex = contractsCache.findIndex(c => c.id === contractId);
-    if (contractIndex === -1) {
+    if (!deletedContract) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
     }
 
-    const deletedContract = contractsCache.splice(contractIndex, 1)[0];
-
-    // Write to file only in development mode
-     if (!isProduction) {
-       try {
-         fs.writeFileSync(CONTRACTS_FILE, JSON.stringify(contractsCache, null, 2));
-         console.log('Development: Contract deleted from file');
-       } catch (writeError) {
-         console.log('Development: Error writing to file:', writeError.message);
-       }
-     } else {
-       console.log('Production: Contract deleted from memory cache only');
-     }
-
+    console.log('Contract deleted successfully from Redis');
     return NextResponse.json({ success: true, deletedContract });
   } catch (error) {
     console.error('Error deleting contract:', error);

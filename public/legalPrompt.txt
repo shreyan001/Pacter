@@ -1,11 +1,4 @@
-// Storage integration simplified to use constants only
-// 0G SDK imports removed as we're using mock data approach
-
-const AGENT_NFT_ABI = [
-  "function mint(bytes[] proofs, string[] dataDescriptions, address to) public payable returns (uint256)",
-];
-
-const LEGAL_PROMPT = `INSTRUCTION TO AGENT:
+INSTRUCTION TO AGENT:
 
 You are to review, audit, and complete the user-provided freelance contract for Indian law compliance, incorporating all required clauses for INR/crypto/barter payments, escrow handling, smart contract automation, AI-powered dispute resolution, and jurisdiction. You must ensure the document is fully structured, with placeholders for missing details, and legally robust throughout.
 
@@ -72,30 +65,3 @@ INSTRUCTIONS:
 - At the end of the contract, add a brief summary or audit log of the changes and insertions you performed.
 
 Return the finalized, fully enriched contract for further review, digital signing, and onboarding.
-`;
-
-const MODEL_PROVIDERS = [
-  {
-    name: "llama-3.3-70b-instruct",
-    address: "0xf07240Efa67755B5311bc75784a061eDB47165Dd",
-    description: "State-of-the-art 70B parameter model for general AI tasks",
-    verification: "TEE (TeeML)"
-  },
-  {
-    name: "deepseek-r1-70b",
-    address: "0x3feE5a4dd5FDb8a32dDA97Bed899830605dBD9D3",
-    description: "Advanced reasoning model optimized for complex problem solving",
-    verification: "TEE (TeeML)"
-  }
-];
-
-// Interface kept for compatibility with existing code
-export interface StorageUploadResult {
-  rootHash: string;
-  filePath: string;
-  description: string;
-  dataHash: string;
-}
-
-// Export the constants for use in other modules
-export { AGENT_NFT_ABI, LEGAL_PROMPT, MODEL_PROVIDERS };

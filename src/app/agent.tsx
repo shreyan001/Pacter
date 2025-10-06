@@ -20,15 +20,24 @@ const convertChatHistoryToMessages = (
 };
   
   async function agent(inputs: {
-    chat_history: [role: string, content: string][],
-    input: string;
-  }) {
-    "use server"; 
+  chat_history: [role: string, content: string][],
+  input: string;
+  walletAddress?: string | null;
+}) {
+  "use server"; 
 
-    return streamRunnableUI({
-      input: inputs.input,
-      chat_history: convertChatHistoryToMessages(inputs.chat_history),
-    });
-  }
+  const result = await streamRunnableUI({
+    input: inputs.input,
+    chat_history: convertChatHistoryToMessages(inputs.chat_history),
+    walletAddress: inputs.walletAddress
+  });
+
+  // Return both UI and state information
+  return {
+    ui: result.ui,
+    responseContent: result.responseContent,
+    graphState: result.graphState
+  };
+}
   
   export const EndpointsContext = exposeEndpoints({ agent });

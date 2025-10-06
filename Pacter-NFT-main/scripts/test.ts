@@ -7,18 +7,18 @@ import path from "path";
 dotenv.config();
 
 // Load contract ABIs
-let agentNFTAbi: any;
+let IndiaFreelanceLegalNFTAbi: any;
 let teeVerifierAbi: any;
 
 try {
-  // Load AgentNFT implementation ABI from build artifacts
-  const agentNFTArtifact = JSON.parse(
+  // Load IndiaFreelanceLegalNFT implementation ABI from build artifacts
+  const IndiaFreelanceLegalNFTArtifact = JSON.parse(
     fs.readFileSync(
-      path.join(__dirname, "../build/artifacts/contracts/AgentNFT.sol/AgentNFT.json"),
+      path.join(__dirname, "../build/artifacts/contracts/IndiaFreelanceLegalNFT.sol/IndiaFreelanceLegalNFT.json"),
       "utf8"
     )
   );
-  agentNFTAbi = agentNFTArtifact.abi;
+  IndiaFreelanceLegalNFTAbi = IndiaFreelanceLegalNFTArtifact.abi;
   
   const teeVerifierDeployment = JSON.parse(
     fs.readFileSync(
@@ -42,13 +42,13 @@ async function extractNFTData() {
     const signer = new ethers.Wallet(process.env.ZG_AGENT_NFT_CREATOR_PRIVATE_KEY!, provider);
     
     // Get contract addresses from deployment files
-    const agentNFTDeployment = JSON.parse(
+    const IndiaFreelanceLegalNFTDeployment = JSON.parse(
       fs.readFileSync(
-        path.join(__dirname, "../deployments/zgTestnet/AgentNFT.json"),
+        path.join(__dirname, "../deployments/zgTestnet/IndiaFreelanceLegalNFT.json"),
         "utf8"
       )
     );
-    const contractAddress = agentNFTDeployment.address;
+    const contractAddress = IndiaFreelanceLegalNFTDeployment.address;
     
     const teeVerifierDeployment = JSON.parse(
       fs.readFileSync(
@@ -59,13 +59,13 @@ async function extractNFTData() {
     const teeVerifierAddress = teeVerifierDeployment.address;
     
     console.log(`📋 Contract Information:`);
-    console.log(`   AgentNFT Address: ${contractAddress}`);
+    console.log(`   IndiaFreelanceLegalNFT Address: ${contractAddress}`);
     console.log(`   TEEVerifier Address: ${teeVerifierAddress}`);
     console.log(`   Signer Address: ${signer.address}`);
     console.log();
     
     // Create contract instances
-    const agentNFT = new ethers.Contract(contractAddress, agentNFTAbi, signer);
+    const IndiaFreelanceLegalNFT = new ethers.Contract(contractAddress, IndiaFreelanceLegalNFTAbi, signer);
     const teeVerifier = new ethers.Contract(teeVerifierAddress, teeVerifierAbi, signer);
     
     // Read the saved token details
@@ -93,20 +93,20 @@ async function extractNFTData() {
     
     try {
       // Get token owner
-      const owner = await agentNFT.ownerOf(tokenId);
+      const owner = await IndiaFreelanceLegalNFT.ownerOf(tokenId);
       console.log(`👤 Token Owner: ${owner}`);
       
       // Get token URI if available
       try {
-        const tokenURI = await agentNFT.tokenURI(tokenId);
+        const tokenURI = await IndiaFreelanceLegalNFT.tokenURI(tokenId);
         console.log(`🔗 Token URI: ${tokenURI}`);
       } catch (error) {
         console.log(`🔗 Token URI: Not available or not implemented`);
       }
       
       // Get data descriptions and hashes
-      const dataDescriptions = await agentNFT.dataDescriptionsOf(tokenId);
-      const dataHashes = await agentNFT.dataHashesOf(tokenId);
+      const dataDescriptions = await IndiaFreelanceLegalNFT.dataDescriptionsOf(tokenId);
+      const dataHashes = await IndiaFreelanceLegalNFT.dataHashesOf(tokenId);
       
       console.log();
       console.log(`📊 Stored Data (${dataDescriptions.length} entries):`);

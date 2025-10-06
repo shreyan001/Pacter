@@ -4,27 +4,33 @@ import { AIMessageText, HumanMessageText } from "@/components/ui/message";
 import { ReactNode } from 'react';
 import { AIProvider } from './client';
 import { BaseMessage } from '@langchain/core/messages';
-import BalanceDisplay from './renderBalance';
 import { Runnable } from '@langchain/core/runnables';
 import { SmartContractDisplay } from '@/components/ui/ContractUI';
 
-export async function streamRunnableUI({ chat_history, input }: { chat_history?: BaseMessage[], input: string }) {
+export async function streamRunnableUI({ chat_history, input, walletAddress }: { chat_history?: BaseMessage[], input: string, walletAddress?: string | null }) {
   const graph = nodegraph();
   const stream = await graph.stream({ 
     input,
-    chat_history,
+    chatHistory: chat_history, // Use chatHistory to match graph state property
+    walletAddress,
   },{
     streamMode:"updates",
   },);
 
   const ui = createStreamableUI();
   let aiResponseContent = "";
+  let graphState: any = {}; // Track the complete graph state
 
   for await (const value of stream) {
     
     
     for (const [nodeName, values] of Object.entries(value)) {
      
+      // Update graph state with all values from the current node
+      // Only spread if values is an object
+      if (values && typeof values === 'object' && !Array.isArray(values)) {
+        graphState = { ...graphState, ...values };
+      }
     
    
     
@@ -55,7 +61,11 @@ if (nodeName !== 'end') {
   }
 
   ui.done();
-  return { ui: ui.value, responseContent: aiResponseContent };
+  return { 
+    ui: ui.value, 
+    responseContent: aiResponseContent,
+    graphState: graphState // Return the complete graph state
+  };
 }
 
 export function exposeEndpoints<T extends Record<string, unknown>>(
