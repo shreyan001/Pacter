@@ -9,10 +9,13 @@ Test instance for escrow deployment enabling NFT-to-0G token conversion through 
 
 | Component | Details |
 |-----------|----------|
-| **Deployed Pacter Agent iNFT Contract** | <a href="https://chainscan-galileo.0g.ai/address/0x81674f2f71dc648e391ff90a8e9556e41bbf42f7" target="_blank">`0x81674f2f71dc648e391ff90a8e9556e41bbf42f7`</a> |
-| **Minted NFT-to-0G Token iNFT Info** | <a href="https://chainscan-galileo.0g.ai/tx/0xeb22519494173d0ca588d3b798f4dafc0eb497221fbbda9d7273c9e34bfad938" target="_blank">explorer link</a> |
-| **Deployed Escrow Contract** | <a href="https://chainscan-galileo.0g.ai/address/0x68dde7a0192c9c5c1e0a71cc556579a67458df0d" target="_blank">explorer link</a> |
+| **Indian Legal INFT Agent** | [`0x50AfCE3f4C6235bAbFbCD31C8Dd1693E99046705`](https://chainscan-galileo.0g.ai/address/0x50AfCE3f4C6235bAbFbCD31C8Dd1693E99046705) |
+| **TEE Verifier Contract** | [`0x81bCd9AbdD3eCd4878AeB98b947f61ACa98b9288`](https://chainscan-galileo.0g.ai/address/0x81bCd9AbdD3eCd4878AeB98b947f61ACa98b9288) |
+| **Minted Agent Token ID** | [Token #0](https://chainscan-galileo.0g.ai/tx/0x6b32607d05d29c4f74fa27d5666449a8e60bf93cc5366e7bbcf3708ee34ecb52) - Owner: `0x83CDBbA8359aAc6a25ACb70eb67dcF0E5eB2c607` |
+| **Escrow Contract (PacterEscrowV2)** | `[To be filled - Testnet deployment pending]` |
+| **Network** | 0G Newton Testnet (Chain ID: 16602) |
 | **Demo Video** | `[Video Link - To be filled]` |
+| **Live Demo** | `[Demo URL - To be filled]` |
 
 ---
 
@@ -189,18 +192,224 @@ flowchart TD
 
 ---
 
-## 📈 **Future Directions & Growth Plan**
+## 📈 **Development Roadmap & Achievements**
 
-- **Wave 1:**  
-  - Robust chat onboarding, wallet connect, demo flows live (freelance/contracts, swap, wager).
-  - Public, open-sourced codebase and detailed GitHub docs.
-- **Wave 2:**  
-  - Social wager templates, protocol fee splits for creators, agent marketplace.
-  - Expansion into multi-party/group agreements and digital events.
-- **Wave 3:**  
-  - Community-contributed contract/agent templates, cross-chain asset support.
-  - Autonomous agent self-upgrades, learning, and analytics.
-  - Push adoption into new verticals: education (credential verification), insurance, DeFi, etc.
+### **Wave 1: Foundation** ✅
+- Robust chat onboarding with AI-powered contract generation
+- Wallet connect integration (WalletConnect)
+- Demo flows live (freelance contracts, escrow)
+- Public, open-sourced codebase and detailed GitHub docs
+
+### **Wave 2: Core Escrow System** ✅
+- Basic escrow contract deployment on 0G testnet
+- Simple milestone-based payment system
+- Initial INFT agent integration
+- Protocol fee structure implementation
+
+### **Wave 3: Indian Legal Compliance & Advanced Verification** ✅
+
+#### **Indian Freelance Legal INFT Agent**
+We deployed a specialized INFT agent contract specifically designed for Indian jurisdiction freelance agreements, incorporating:
+
+**Legal Framework Integration:**
+- **Indian Contract Act, 1872** compliance
+- **Information Technology Act, 2000** digital signature support
+- **Arbitration & Conciliation Act, 1996** dispute resolution
+- Multi-currency support: INR, Cryptocurrency (VDA), and lawful barter
+- Tax compliance clauses (Section 28, Income Tax Act, 1961)
+- Escrow and smart contract automation clauses
+- AI-powered dispute resolution with legal fallback mechanisms
+
+**INFT Contract Deployment (zgTestnet):**
+
+| Contract | Address | Purpose |
+|----------|---------|---------|
+| **TEEVerifier** | [`0x81bCd9AbdD3eCd4878AeB98b947f61ACa98b9288`](https://chainscan-galileo.0g.ai/address/0x81bCd9AbdD3eCd4878AeB98b947f61ACa98b9288) | TEE-based proof verification for agent actions |
+| **IndiaFreelanceLegalNFTImpl** | [`0x9c38E1045Cf3b499199075bbC4E438E4faF900aB`](https://chainscan-galileo.0g.ai/address/0x9c38E1045Cf3b499199075bbC4E438E4faF900aB) | Implementation contract for upgradeable INFT |
+| **IndiaFreelanceLegalNFTBeacon** | [`0x2B31469af35BE50E233Df01F0944dA3203b7e456`](https://chainscan-galileo.0g.ai/address/0x2B31469af35BE50E233Df01F0944dA3203b7e456) | Beacon proxy for upgradeable pattern |
+| **IndiaFreelanceLegalNFT** (Main) | [`0x50AfCE3f4C6235bAbFbCD31C8Dd1693E99046705`](https://chainscan-galileo.0g.ai/address/0x50AfCE3f4C6235bAbFbCD31C8Dd1693E99046705) | Main INFT contract for legal agent instances |
+
+**Minted Agent Instance:**
+- **Token ID:** 0
+- **Owner:** `0x83CDBbA8359aAc6a25ACb70eb67dcF0E5eB2c607`
+- **Transaction:** [`0x6b32607d05d29c4f74fa27d5666449a8e60bf93cc5366e7bbcf3708ee34ecb52`](https://chainscan-galileo.0g.ai/tx/0x6b32607d05d29c4f74fa27d5666449a8e60bf93cc5366e7bbcf3708ee34ecb52)
+- **Status:** ✅ Active with TEE-verified proofs
+
+**Legal Prompt Integration:**
+The INFT agent uses a comprehensive legal prompt ([view source](./Pacter-NFT-main/scripts/mint/storageIntegration.ts)) that:
+- Reviews and audits user-provided contracts
+- Adds Indian law compliance clauses
+- Incorporates payment, escrow, and dispute resolution terms
+- Ensures jurisdiction-specific requirements are met
+- Generates legally robust, structured agreements
+
+**0G Compute Integration for Legal Processing:**
+- **Model:** Llama-3.3-70B-Instruct (TEE-verified)
+- **Provider Address:** `0xf07240Efa67755B5311bc75784a061eDB47165Dd`
+- **Purpose:** Process initial contracts, add legal amendments, ensure compliance
+- **Verification:** All AI inference runs in TEE (TeeML) for cryptographic attestation
+
+### **Wave 4: Production-Grade Escrow with Full Verification** ✅
+
+#### **Enhanced Escrow Smart Contract**
+Upgraded from simple escrow to a comprehensive verification-based system:
+
+**PacterEscrowV2 Contract:**
+- **Address:** [`[To be filled]`](#)
+- **GitHub:** [View Contract Source](./contracts/PacterEscrowV2.sol)
+- **Features:**
+  - Multi-milestone support
+  - AI agent verification integration
+  - Automated payment approval workflow
+  - 0G Storage fee handling
+  - Dispute resolution states
+  - TEE-verified deliverable checking
+
+**Contract States:**
+```
+PENDING → ACTIVE → VERIFIED → APPROVED → COMPLETED
+                ↓
+         VERIFICATION_FAILED / DISPUTED
+```
+
+#### **Complete Verification Workflow**
+
+**1. Information Collection Stage**
+- Multi-page UX for gathering project details
+- AI-powered chat interface for natural contract creation
+- Milestone definition with deliverable requirements
+- Payment terms and escrow amount configuration
+
+**2. Contract Generation & Signing**
+- AI generates legally compliant contract using INFT agent
+- Both parties review and digitally sign
+- Signatures stored on-chain with timestamps
+- Contract metadata uploaded to 0G Storage
+
+**3. Escrow Deposit**
+- Client deposits funds to smart contract
+- Amount split: Escrow (90%) + Storage Fee (10%)
+- Order hash generated for tracking
+- Funds locked until verification complete
+
+**4. Deliverable Submission & Verification**
+The system implements a comprehensive verification pipeline:
+
+**GitHub Verification Module:**
+- Freelancer submits GitHub repository URL
+- System verifies repository accessibility
+- Checks commit history and authenticity
+- Auto-detects deployment URLs from repository metadata
+- Validates deployment connection to repository
+
+**Code Download & Storage:**
+- Repository cloned and packaged
+- Metadata JSON created with verification details
+- **Uploaded to 0G Storage** (real decentralized storage)
+- Root hash and transaction hash returned
+- All artifacts immutably stored
+
+**AI Agent Verification:**
+- Agent reviews code quality and completeness
+- Checks against milestone requirements
+- Verifies deployment matches repository
+- **Signs verification on-chain** using TEE-secured wallet
+- Verification details stored in smart contract
+
+**5. Client Review & Approval**
+- Client can test live deployment URL
+- Reviews AI verification report
+- Sees complete audit trail
+- Approves payment release on-chain
+- Approval triggers state change to APPROVED
+
+**6. Freelancer Withdrawal**
+- Freelancer withdraws funds from escrow
+- Smart contract transfers approved amount
+- Storage fees sent to 0G service wallet
+- Contract state updated to COMPLETED
+- All transactions recorded on-chain
+
+#### **0G Integration Highlights**
+
+**0G Storage Usage:**
+1. **Contract Metadata Storage**
+   - Legal contracts and terms
+   - Party information and signatures
+   - Milestone definitions
+
+2. **Verification Artifacts**
+   - GitHub repository snapshots
+   - Deployment verification proofs
+   - AI agent assessment reports
+   - Merkle proofs for audit trail
+
+3. **Evidence Logging**
+   - All deliverable submissions
+   - Client feedback and comments
+   - Dispute resolution records
+   - Complete transaction history
+
+**0G Compute Usage:**
+1. **Legal Contract Processing**
+   - Initial contract review and enhancement
+   - Indian law compliance checking
+   - Clause insertion and formatting
+   - Legal audit log generation
+
+2. **Deliverable Verification**
+   - Code quality assessment
+   - Milestone completion checking
+   - Deployment validation
+   - Automated decision-making
+
+3. **Dispute Resolution**
+   - Evidence analysis
+   - Automated mediation suggestions
+   - Fair settlement recommendations
+
+**INFT Agent Integration:**
+- Each contract can be backed by an INFT agent
+- Agent holds verification logic and legal templates
+- TEE-secured credentials for GitHub/API access
+- Upgradeable logic via beacon proxy pattern
+- Transferable and composable agent instances
+
+#### **Technical Architecture**
+
+**Frontend (Next.js):**
+- Multi-stage contract creation flow
+- Real-time verification progress tracking
+- Wallet integration (WalletConnect)
+- Contract state visualization
+- Chat interface for AI interaction
+
+**Backend (API Routes):**
+- `/api/contracts` - Contract CRUD operations
+- `/api/verify/github` - GitHub verification
+- `/api/verify/storage` - 0G Storage upload
+- `/api/verify/agent-sign` - AI agent signing
+- `/api/verify/finalize` - Backend state update
+- `/api/storage/download` - 0G Storage download
+
+**Smart Contracts:**
+- PacterEscrowV2 - Main escrow logic
+- IndiaFreelanceLegalNFT - INFT agent instances
+- TEEVerifier - Proof verification
+
+**Storage Layer:**
+- Redis - Fast contract state management
+- 0G Storage - Immutable artifact storage
+- IPFS - Redundant backup storage
+
+### **Wave 5: Future Enhancements** 🚀
+- Multi-party agreements and group contracts
+- Cross-chain asset support
+- Autonomous agent self-upgrades
+- Community-contributed templates
+- Advanced analytics and reporting
+- Mobile app development
+- Integration with traditional legal systems
 
 ---
 
