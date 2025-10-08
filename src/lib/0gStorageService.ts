@@ -2,8 +2,16 @@ import { ethers } from 'ethers';
 import { Indexer, ZgFile } from '@0glabs/0g-ts-sdk';
 import * as fs from 'fs';
 import * as path from 'path';
+import archiver from 'archiver';
 
 export interface UploadResult {
+  success: boolean;
+  rootHash?: string;
+  txHash?: string;
+  error?: string;
+}
+
+export interface FolderUploadResult {
   success: boolean;
   rootHash?: string;
   txHash?: string;
@@ -33,8 +41,10 @@ export class ZeroGStorageService {
       throw new Error('0G_PRIVATE_KEY environment variable is required');
     }
     
-    // Initialize wallet
-    this.wallet = new ethers.Wallet(privateKey);
+    // Initialize wallet with provider
+    const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    this.wallet = new ethers.Wallet(privateKey, provider);
     
     // Initialize indexer with testnet URL
     this.indexer = new Indexer('https://indexer-storage-testnet-turbo.0g.ai');
@@ -65,7 +75,7 @@ export class ZeroGStorageService {
       console.log('📁 File loaded, starting upload...');
       
       // Upload file using the indexer
-      const rpcUrl = process.env.OG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
+      const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
       //@ts-ignore
       const [result, err] = await this.indexer.upload(file, rpcUrl, this.wallet);
       
@@ -86,6 +96,95 @@ export class ZeroGStorageService {
     } catch (error) {
       console.error('❌ Upload error:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  /**
+   * Upload a folder to 0G Storage by archiving it into a single zip file
+   */
+  async uploadFolder(folderPath: string): Promise<FolderUploadResult> {
+    try {
+      console.log(`📦 Starting archive and upload for folder: ${folderPath}`);
+      
+      // Check if folder exists
+      if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
+        return { success: false, error: 'Folder not found or not a directory' };
+      }
+      
+      // Create a temporary zip file
+      const tempZipPath = path.join(require('os').tmpdir(), `pacter-folder-${Date.now()}.zip`);
+      
+      // Create a write stream for the zip file
+      const output = fs.createWriteStream(tempZipPath);
+      const archive = archiver('zip', {
+        zlib: { level: 9 } // Maximum compression
+      });
+      
+      // Set up archive events
+      archive.on('error', (err) => {
+        console.error('❌ Archiver error:', err); // Added logging
+        throw err;
+      });
+      
+      // Pipe archive data to the file
+      archive.pipe(output);
+      
+      // Add the folder to the archive
+      archive.directory(folderPath, false);
+      console.log(`Adding folder ${folderPath} to archive.`); // Added logging
+      
+      // Finalize the archive
+      await archive.finalize();
+      console.log('Archive finalized.'); // Added logging
+      
+      // Wait for the output stream to finish
+      await new Promise<void>((resolve, reject) => {
+        output.on('close', () => {
+          console.log(`📦 Archive created: ${archive.pointer()} total bytes`);
+          resolve();
+        });
+        output.on('error', (err) => {
+          console.error('❌ Output stream error:', err); // Added logging
+          reject(err);
+        });
+      });
+      
+      // Create ZgFile from the zip file
+      console.log('📁 Loading zip file for upload...');
+      const file = await ZgFile.fromFilePath(tempZipPath);
+      
+      console.log('📤 Starting upload to 0G Storage...');
+      
+      // Upload file using the indexer
+      const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
+      //@ts-ignore
+      const [result, err] = await this.indexer.upload(file, rpcUrl, this.wallet);
+      console.log('0G Indexer upload attempt complete.'); // Added logging
+      
+      // Clean up the temporary zip file
+      fs.unlinkSync(tempZipPath);
+      console.log('🧹 Temporary zip file deleted');
+      
+      if (err) {
+        console.error('❌ Upload failed:', err);
+        return { success: false, error: err.message };
+      }
+      
+      console.log('✅ Upload successful!');
+      console.log(`📋 Transaction Hash: ${result.txHash}`);
+      console.log(`🔑 Root Hash: ${result.rootHash}`);
+      
+      return {
+        success: true,
+        rootHash: result.rootHash,
+        txHash: result.txHash
+      };
+    } catch (error) {
+      console.error('❌ Folder archive and upload error:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
     }
   }
 

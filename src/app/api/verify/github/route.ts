@@ -1,5 +1,6 @@
 // Step 1: GitHub Verification
 import { NextRequest, NextResponse } from 'next/server'
+import { PROBLEMATIC_DEPLOYMENT_URL } from '@/lib/github/verifyDeployment'
 
 async function verifyGitHubRepository(githubUrl: string, deploymentUrl?: string) {
   try {
@@ -92,7 +93,7 @@ async function verifyGitHubRepository(githubUrl: string, deploymentUrl?: string)
 
 export async function POST(request: NextRequest) {
   try {
-    const { githubUrl, deploymentUrl } = await request.json()
+    const { githubUrl, deploymentUrl: rawDeploymentUrl } = await request.json()
     
     if (!githubUrl) {
       return NextResponse.json(
@@ -100,10 +101,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Filter out the problematic deployment URL if it's provided in the request
+    const deploymentUrl = rawDeploymentUrl === PROBLEMATIC_DEPLOYMENT_URL ? undefined : rawDeploymentUrl;
     
     const result = await verifyGitHubRepository(githubUrl, deploymentUrl)
     
     if (!result.success) {
+      console.error('GitHub verification failed:', result.error);
       return NextResponse.json(
         { error: result.error },
         { status: 400 }

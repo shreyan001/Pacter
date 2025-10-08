@@ -1,60 +1,55 @@
 // Step 2: 0G Storage Upload
 import { NextRequest, NextResponse } from 'next/server'
-import { ethers } from 'ethers'
 import { ZeroGStorageService } from '@/lib/0gStorageService'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 
-async function uploadTo0GStorage(githubUrl: string, repoInfo: any) {
+async function uploadCodeTo0GStorage(codeContent: string, metadata: any) {
   try {
-    console.log('📤 Starting real 0G storage upload...')
+    console.log('📤 Starting 0G storage upload for code content...')
     
-    // Create metadata JSON
-    const metadata = {
-      githubUrl,
-      repoInfo,
-      uploadedAt: new Date().toISOString(),
-      verificationAgent: 'Pacter-AI-Agent',
-      contractType: 'Pacter-Escrow-Contract',
-      version: '1.0.0'
-    }
+    // Create temporary directory for code files
+    const tempDir = path.join(os.tmpdir(), `pacter_upload_${Date.now()}`)
+    fs.mkdirSync(tempDir, { recursive: true })
     
-    // Create temporary file with metadata
-    const tempDir = os.tmpdir()
-    const tempFilePath = path.join(tempDir, `pacter_metadata_${Date.now()}.json`)
-    fs.writeFileSync(tempFilePath, JSON.stringify(metadata, null, 2))
+    // Create metadata file
+    const metadataFilePath = path.join(tempDir, 'metadata.json')
+    fs.writeFileSync(metadataFilePath, JSON.stringify(metadata, null, 2))
     
-    console.log('📝 Metadata file created:', tempFilePath)
+    // Create code file
+    const codeFilePath = path.join(tempDir, 'code.js')
+    fs.writeFileSync(codeFilePath, codeContent)
+    
+    console.log('📝 Temporary files created in:', tempDir)
     
     try {
       // Initialize 0G Storage Service
       const storageService = new ZeroGStorageService()
       console.log('🔗 Connected to 0G Storage with wallet:', storageService.getWalletAddress())
       
-      // Upload to 0G Storage
-      const uploadResult = await storageService.uploadFile(tempFilePath)
+      // Upload folder to 0G Storage
+      const uploadResult = await storageService.uploadFolder(tempDir)
       
-      // Clean up temp file
-      fs.unlinkSync(tempFilePath)
+      // Clean up temp directory
+      fs.rmSync(tempDir, { recursive: true, force: true })
       
       if (!uploadResult.success) {
         throw new Error(uploadResult.error || 'Upload failed')
       }
       
       console.log('✅ Upload successful!')
-      console.log('📋 Root Hash:', uploadResult.rootHash)
-      console.log('📋 TX Hash:', uploadResult.txHash)
+      console.log(`📋 Uploaded folder with rootHash: ${uploadResult.rootHash}`)
       
       return {
         success: true,
-        storageHash: uploadResult.rootHash,
-        storageTxHash: uploadResult.txHash,
+        rootHash: uploadResult.rootHash,
+        txHash: uploadResult.txHash
       }
     } catch (uploadError: any) {
-      // Clean up temp file on error
-      if (fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath)
+      // Clean up temp directory on error
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true, force: true })
       }
       throw uploadError
     }
@@ -69,16 +64,24 @@ async function uploadTo0GStorage(githubUrl: string, repoInfo: any) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { githubUrl, repoInfo } = await request.json()
+    const { codeContent, metadata } = await request.json()
     
-    if (!githubUrl || !repoInfo) {
+    if (!codeContent) {
       return NextResponse.json(
-        { error: 'GitHub URL and repo info are required' },
+        { error: 'Code content is required' },
         { status: 400 }
       )
     }
     
-    const result = await uploadTo0GStorage(githubUrl, repoInfo)
+    // Use provided metadata or create default
+    const uploadMetadata = metadata || {
+      uploadedAt: new Date().toISOString(),
+      verificationAgent: 'Pacter-AI-Agent',
+      contractType: 'Pacter-Escrow-Contract',
+      version: '1.0.0'
+    }
+    
+    const result = await uploadCodeTo0GStorage(codeContent, uploadMetadata)
     
     if (!result.success) {
       return NextResponse.json(
@@ -87,7 +90,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    return NextResponse.json(result)
+    return NextResponse.json({ rootHash: result.rootHash, txHash: result.txHash })
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || 'Storage upload failed' },

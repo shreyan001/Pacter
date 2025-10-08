@@ -755,32 +755,32 @@ function PostDepositWorkflow({ contract, orderHash, onUpdate }: { contract: any;
                   onClick={async () => {
                     try {
                       setApprovalError(null)
-                      const response = await fetch('/api/storage/download', {
+                      
+                      // Use our new download API endpoint
+                      const response = await fetch('/api/download', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ storageHash })
+                        body: JSON.stringify({ rootHash: storageHash })
                       })
                       
                       if (!response.ok) {
-                        throw new Error('Download failed')
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Download failed');
                       }
                       
-                      const data = await response.json()
-                      
-                      // Create a downloadable JSON file
-                      const blob = new Blob([JSON.stringify(data.metadata, null, 2)], { type: 'application/json' })
-                      const url = window.URL.createObjectURL(blob)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = `pacter_project_${contract.id}_metadata.json`
-                      document.body.appendChild(a)
-                      a.click()
-                      window.URL.revokeObjectURL(url)
-                      document.body.removeChild(a)
-                      
-                      alert('✅ Project metadata downloaded successfully! Check your downloads folder.')
+                      // Create a download link for the binary response
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `pacter_project_${contract.id}.zip`;
+                      document.body.appendChild(a);
+                      a.click();
+                      window.URL.revokeObjectURL(url);
+                      document.body.removeChild(a);
                     } catch (err: any) {
-                      setApprovalError('Failed to download from 0G storage: ' + err.message)
+                      console.error('Download error:', err);
+                      setApprovalError('Failed to download from 0G storage: ' + err.message);
                     }
                   }}
                   className="w-full bg-indigo-600 hover:bg-indigo-700"

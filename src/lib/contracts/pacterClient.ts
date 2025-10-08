@@ -15,7 +15,7 @@ import {
   type TransactionReceipt,
 } from "viem";
 import { PACTER_ABI, OrderState } from "./pacterABI";
-import { getContractAddress } from "./config";
+import { getContractAddress, TX_CONFIG } from "./config";
 
 /**
  * Parameters for creating an escrow order
@@ -402,22 +402,31 @@ export async function waitForTransaction(
   try {
     console.log("Waiting for transaction confirmation:", hash);
 
-    const receipt = await publicClient.waitForTransactionReceipt({
-      hash,
-      confirmations,
-    });
-
-    console.log("Transaction confirmed:", {
-      blockNumber: receipt.blockNumber,
-      status: receipt.status,
-      gasUsed: receipt.gasUsed.toString(),
-    });
-
-    if (receipt.status === "reverted") {
-      throw new Error("Transaction reverted");
+    try {
+      const receipt = await publicClient.waitForTransactionReceipt({
+        hash,
+        confirmations,
+        timeout: TX_CONFIG.TIMEOUT_MS, // Use configured timeout
+      });
+    
+      console.log("Transaction confirmed:", {
+        blockNumber: receipt.blockNumber,
+        status: receipt.status,
+        gasUsed: receipt.gasUsed.toString(),
+      });
+    
+      if (receipt.status === "reverted") {
+        throw new Error("Transaction reverted");
+      }
+      return receipt;
+    } catch (error) {
+      if (error.name === 'TimeoutError') {
+        console.warn(`Transaction ${hash} timed out after ${TX_CONFIG.TIMEOUT_MS / 1000} seconds.`);
+        throw new Error(`Transaction ${hash} timed out.`);
+      }
+      throw error;
     }
 
-    return receipt;
   } catch (error: any) {
     console.error("Error waiting for transaction:", error);
 

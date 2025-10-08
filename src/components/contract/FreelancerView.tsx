@@ -168,15 +168,9 @@ export default function FreelancerView({ contract, onContractUpdate }: Freelance
         githubResult.githubUrl
       )
 
-      // STEP 2: Download & Upload to 0G Storage
-      updateVerificationStep('download', 'processing', 'Downloading repository...')
-      
-      // Simulate download
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      updateVerificationStep('download', 'completed', 'Repository downloaded successfully')
-      
-      updateVerificationStep('upload', 'processing', 'Uploading to 0G storage...')
-      
+      // STEP 2: Upload to 0G Storage
+      updateVerificationStep('upload', 'processing', 'Uploading deliverable to 0G Storage...')
+
       const storageResponse = await fetch('/api/verify/storage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -188,13 +182,18 @@ export default function FreelancerView({ contract, onContractUpdate }: Freelance
 
       const storageResult = await storageResponse.json()
       if (!storageResponse.ok) {
-        throw new Error(storageResult.error || 'Storage upload failed')
+        throw new Error(storageResult.error || '0G Storage upload failed')
       }
 
+      const storageExplorerUrl = storageResult.storageTxHash
+        ? `https://chainscan-galileo.0g.ai/tx/${storageResult.storageTxHash}`
+        : undefined
+
       updateVerificationStep(
-        'upload', 
-        'completed', 
-        `Storage Hash: ${storageResult.storageHash?.substring(0, 20)}...`
+        'upload',
+        'completed',
+        `Root Hash: ${storageResult.storageHash}`,
+        storageExplorerUrl
       )
 
       // STEP 3: Agent Signs On-Chain
@@ -205,8 +204,8 @@ export default function FreelancerView({ contract, onContractUpdate }: Freelance
         verifiedAt: new Date().toISOString(),
         method: 'GitHub + 0G Storage',
         githubRepo: githubUrl.trim(),
-        storageHash: storageResult.storageHash,
-        storageTxHash: storageResult.storageTxHash
+        storageHash: githubResult.rootHash,
+        storageTxHash: githubResult.txHash
       })
       
       const agentResponse = await fetch('/api/verify/agent-sign', {
@@ -225,7 +224,7 @@ export default function FreelancerView({ contract, onContractUpdate }: Freelance
 
       // Build proper explorer URL
       const explorerUrl = agentResult.transactionHash && agentResult.transactionHash !== 'Already verified'
-        ? `https://chainscan-newton.0g.ai/tx/${agentResult.transactionHash}`
+        ? `https://chainscan-galileo.0g.ai/tx/${agentResult.transactionHash}`
         : undefined
       
       updateVerificationStep(
@@ -249,7 +248,7 @@ export default function FreelancerView({ contract, onContractUpdate }: Freelance
           deploymentUrl: deploymentUrl.trim() || null,
           comments: comments.trim() || null,
           githubVerification: githubResult,
-          storageResult: storageResult,
+          storageResult: { storageHash: githubResult.rootHash, storageTxHash: githubResult.txHash }, // Pass rootHash and txHash
           agentApproval: agentResult,
         })
       })
