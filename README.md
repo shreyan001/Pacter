@@ -57,7 +57,7 @@ We've deeply integrated 0G's powerful infrastructure throughout our platform:
 | **Escrow Contract (PacterEscrowV2)** | [`0x259829717EbCe11350c37CB9B5d8f38Cb42E0988`](https://chainscan-galileo.0g.ai/address/0x259829717EbCe11350c37CB9B5d8f38Cb42E0988) |
 | **Network** | 0G Newton Testnet (Chain ID: 16602) |
 | **Demo Video** | `[Video Link - To be filled]` |
-| **Live Demo** | `[Demo URL - To be filled]` |
+| **Live Demo** | [https://pacter.vercel.app/](https://pacter.vercel.app/) |
 
 ---
 
