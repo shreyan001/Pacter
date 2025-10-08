@@ -200,7 +200,6 @@ After successful verification, check:
 
 ```env
 # GitHub API (optional but recommended for higher rate limits)
-GITHUB_TOKEN='github_pat_...'
 
 # 0G Network
 NEXT_PUBLIC_ZEROG_RPC_URL='https://evmrpc-testnet.0g.ai'
