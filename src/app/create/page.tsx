@@ -17,9 +17,12 @@ export default function CreatePage() {
     setStageData(prev => ({ ...prev, ...data }));
   };
 
-  const handleGraphStateUpdate = (newGraphState: GraphState, progress: number) => {
+  const handleGraphStateUpdate = async (newGraphState: GraphState, progress: number) => {
     setGraphState(newGraphState);
     setContractProgress(progress);
+    
+    // Contract generation now happens inline in CreateChat component
+    // No redirect needed - everything stays in the chat interface
   };
 
   const handleStageClick = (stageIndex: number) => {
@@ -42,7 +45,7 @@ export default function CreatePage() {
               flowType={flowType}
               currentStage={currentStage}
               setCurrentStage={setCurrentStage}
-              setFlowType={setFlowType}
+
               onStageDataUpdate={(data) => setStageData(data)}
               onGraphStateUpdate={handleGraphStateUpdate}
             />

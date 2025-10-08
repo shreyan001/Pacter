@@ -24,6 +24,17 @@ export interface GraphState {
   result?: string;
   messages?: string[];
   stageData?: any;
+  collectedFields?: {
+    projectName?: boolean;
+    clientName?: boolean;
+    email?: boolean;
+    paymentAmount?: boolean;
+    projectDescription?: boolean;
+    deadline?: boolean;
+  };
+  // 0G Compute Integration
+  inferenceReady?: boolean;
+  collectedData?: CollectedContractData;
 }
 
 // Chat message types
@@ -66,7 +77,6 @@ export interface CreateChatProps {
   flowType: FlowType;
   currentStage: number;
   setCurrentStage: (stage: number) => void;
-  setFlowType: (type: FlowType) => void;
   onStageDataUpdate?: (data: any) => void;
   onGraphStateUpdate?: (graphState: GraphState, progress: number) => void;
 }
@@ -133,4 +143,100 @@ export interface CreatePageState {
   chatHistory: Message[];
   isLoading: boolean;
   error?: string;
+}
+
+// ============================================================================
+// 0G Compute Integration Types
+// ============================================================================
+
+/**
+ * Collected contract data from information collection phase
+ * This matches the JSON structure returned by the agent
+ */
+export interface CollectedContractData {
+  projectInfo: {
+    projectName: string;
+    projectDescription: string;
+    timeline: string;
+    deliverables: string[];
+  };
+  clientInfo: {
+    clientName: string;
+    email: string;
+    walletAddress: string;
+  };
+  financialInfo: {
+    paymentAmount: number;
+    platformFees: number;
+    escrowFee: number;
+    totalEscrowAmount: number;
+    currency: string;
+    zeroGEquivalent: number;
+    feeBreakdown: {
+      projectPayment: number;
+      platformFee: number;
+      escrowFee: number;
+      total: number;
+    };
+  };
+  escrowDetails: {
+    escrowType: string;
+    paymentMethod: string;
+    releaseCondition: string;
+    disputeResolution: string;
+  };
+  metadata: {
+    createdAt: string;
+    stage: string;
+    version: string;
+    platform: string;
+    collectionComplete: boolean;
+  };
+}
+
+/**
+ * Input format for 0G Compute secure inference
+ */
+export interface InferenceInput {
+  prompt: string;
+  context: CollectedContractData;
+  template: string;
+  verificationMode: 'TEE' | 'ZKP';
+}
+
+/**
+ * Output from 0G Compute secure inference
+ */
+export interface InferenceOutput {
+  contractText: string;
+  metadata: {
+    generatedAt: number;
+    model: string;
+    verificationMode: string;
+  };
+  proof: VerificationProof;
+}
+
+/**
+ * Verification proof from 0G Compute
+ */
+export interface VerificationProof {
+  type: 'TEE' | 'ZKP';
+  hash: string;
+  signature: string;
+  timestamp: number;
+  details: any;
+}
+
+/**
+ * Props for InferenceView component
+ */
+export interface InferenceViewProps {
+  collectedData: CollectedContractData | null;
+  inferenceResult: string | null;
+  verificationProof: VerificationProof | null;
+  isLoading: boolean;
+  error: string | null;
+  onRetry: () => void;
+  onBack: () => void;
 }

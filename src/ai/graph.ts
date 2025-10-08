@@ -3,9 +3,7 @@ import { BaseMessage, AIMessage, HumanMessage } from "@langchain/core/messages";
 import { START, END } from "@langchain/langgraph";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 import { ChatGroq } from "@langchain/groq";
-import { UserInputExtractionSchema, safeParseUserInput } from './zodSchemas';
-import fs from 'fs/promises';
-import path from 'path';
+import { z } from "zod";
 
 const model = new ChatGroq({
     modelName: "llama-3.3-70b-versatile",
@@ -13,22 +11,63 @@ const model = new ChatGroq({
     apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
 });
 
-type guildState = {
+// **Zod Schema for Information Extraction**
+export const UserInputExtractionSchema = z.object({
+    extractedInfo: z.object({
+        projectName: z.string().nullable().describe("Name of the project/website"),
+        projectDescription: z.string().nullable().describe("Description of what needs to be built"),
+        clientName: z.string().nullable().describe("Name of the client/company"),
+        paymentAmount: z.number().nullable().describe("Payment amount in INR"),
+        walletAddress: z.string().nullable().describe("0G wallet address"),
+        email: z.string().nullable().describe("Client email address"),
+        timeline: z.string().nullable().describe("Project timeline"),
+        deliverables: z.array(z.string()).nullable().describe("Project deliverables")
+    }),
+    completionStatus: z.object({
+        isComplete: z.boolean().describe("Whether all required information is collected"),
+        hasProjectName: z.boolean().describe("Whether project name is provided"),
+        hasProjectDescription: z.boolean().describe("Whether project description is provided"),
+        hasClientName: z.boolean().describe("Whether client name is provided"),
+        hasPaymentAmount: z.boolean().describe("Whether payment amount is provided"),
+        hasWalletAddress: z.boolean().describe("Whether wallet address is provided"),
+        hasEmail: z.boolean().describe("Whether email is provided")
+    })
+});
+
+// **State Type Definition**
+type ProjectState = {
     input: string,
-    contractData?: string | null,
+    contractData?: any | null,
     chatHistory?: BaseMessage[],
     messages?: any[] | null,
     operation?: string,
     result?: string,
-    walletAddress?: string, // Add wallet address to state
-    // Stage management for conversation flow
-    stage?: 'initial' | 'information_collection' | 'contract_creation' | 'payment_collection' | 'completed',
+    walletAddress?: string,
+    // Enhanced stage management for conversation flow
+    stage?: 'initial' | 'information_collection' | 'data_ready' | 'completed',
     information_collection?: boolean,
-    // Project information for freelance website development
+    // Progress tracking for frontend synchronization
+    progress?: number, // 0-100 percentage
+    stageIndex?: number, // Current stage index for frontend
+    currentFlowStage?: string, // Current flow stage name
+    isStageComplete?: boolean, // Whether current stage is complete
+    stageData?: any, // Data for current stage
+    validationErrors?: string[], // Validation errors for frontend
+    formData?: any, // Form data for frontend
+    // Information collection tracking
+    collectedFields?: {
+        projectName?: boolean,
+        projectDescription?: boolean,
+        clientName?: boolean,
+        email?: boolean,
+        walletAddress?: boolean,
+        paymentAmount?: boolean,
+    },
+    // Project information
     projectInfo?: {
         projectName?: string,
         projectDescription?: string,
-        deliverables?: string[], // e.g., ["GitHub repository", "Live deployment", "Documentation"]
+        deliverables?: string[],
         timeline?: string,
         requirements?: string,
         revisions?: number,
@@ -36,19 +75,24 @@ type guildState = {
     clientInfo?: {
         clientName?: string,
         walletAddress?: string,
+        email?: string,
     },
     financialInfo?: {
-        paymentAmount?: number, // Payment to freelancer in USD
-        platformFees?: number, // DocPact platform fees
-        escrowFee?: number, // Escrow service fee (0.2% of payment amount)
-        totalEscrowAmount?: number, // Total amount client needs to deposit
-        currency?: string, // Currency for the payment (default: USD)
+        paymentAmount?: number, // Payment in INR
+        platformFees?: number, // Platform fees in INR
+        escrowFee?: number, // Escrow service fee in INR
+        totalEscrowAmount?: number, // Total amount in INR
+        currency?: string, // Currency (INR)
+        zeroGEquivalent?: number, // Equivalent in 0G tokens
     },
-    contractReady?: boolean,
+    dataReady?: boolean,
+    // 0G Compute Integration
+    inferenceReady?: boolean, // Signal that data is ready for secure inference
+    collectedData?: any, // Complete collected data for inference
 }
 
 export default function nodegraph() {
-    const graph = new StateGraph<guildState>({
+    const graph = new StateGraph<ProjectState>({
         channels: {
             messages: { value: (x: any[], y: any[]) => x.concat(y) },
             input: { value: null },
@@ -57,429 +101,660 @@ export default function nodegraph() {
             chatHistory: { value: null },
             operation: { value: null },
             walletAddress: { value: null },
+            stage: { value: null },
+            information_collection: { value: null },
+            progress: { value: null },
+            stageIndex: { value: null },
+            currentFlowStage: { value: null },
+            isStageComplete: { value: null },
+            stageData: { value: null },
+            validationErrors: { value: null },
+            formData: { value: null },
+            collectedFields: { value: null },
             projectInfo: { value: null },
             clientInfo: { value: null },
             financialInfo: { value: null },
-            contractReady: { value: null }
+            dataReady: { value: null },
+            // 0G Compute Integration
+            inferenceReady: { value: null },
+            collectedData: { value: null }
         }
     });
 
-    // Initial Node: Routes user requests to the appropriate node
-    graph.addNode("initial_node", async (state: guildState) => {
-        const SYSTEM_TEMPLATE = `You are an AI agent for Pacter, a platform focused on contract creation and smart contract management.
+    // Initial Node: Provides comprehensive project information and routes user requests
+    graph.addNode("initial_node", async (state: ProjectState) => {
+        const INITIAL_SYSTEM_TEMPLATE = `You are Pacter AI, an intelligent assistant for Pacter - a secure escrow system for freelance project development.
 
-Based on the user's input and conversation history, respond with ONLY ONE of the following words:
-- "contract_creation" if the user wants to create a contract, set up a project agreement, or establish work terms
-- "contribute_node" if the user wants to report any errors or contribute to the project
-- "unknown" if the request doesn't fit into any of the above categories
+## About Pacter
+Pacter is a **trustless escrow platform** that enables secure transactions between clients and freelancers for project development. Built on:
 
-Context for decision-making:
-- Contract creation involves setting up agreements, defining project terms, milestones, payments, and deliverables
-- User contributions can include reporting errors, suggesting improvements, or offering to help develop the project
-- Use the conversation history to understand the user's intent and provide continuity
+🔗 **Secure Escrow System** - Protected payment holding using 0G blockchain
+⚡ **Smart Contract Integration** - Automated contract execution  
+💰 **INR payments with 0G tokens** - All payments collected in INR and executed using 0G token equivalents
+🤖 **Automated verification** - Payment release system
+🛡️ **Dual Protection** - Guards against non-payment AND non-delivery
 
-Respond strictly with ONLY ONE of these words: "contract_creation", "contribute_node", or "unknown". Provide no additional text or explanation.`;
+## Key Features & Benefits
+✅ **Trustless Security** - Payments held in escrow until work completion
+📋 **Milestone Tracking** - Automated verification and progress monitoring  
+📁 **Secure Delivery** - Protected file delivery and project management
+🌐 **Project Types** - Websites, mobile apps, software development, design work, etc.
+
+## How It Works
+1. **Client deposits** payment into secure escrow (in INR, executed as 0G tokens)
+2. **Freelancer builds** the project according to specifications
+3. **Automated verification** checks deliverables against requirements
+4. **Payment releases** automatically when milestones are met
+5. **Dispute resolution** available if needed
+
+## Classification Guidelines
+
+**For GREETINGS & GENERAL QUESTIONS**: 
+Provide detailed, helpful information about Pacter, how it works, benefits, and encourage them to explore our escrow services. Be warm, informative, and educational.
+
+**For ESCROW INTEREST**: 
+If user wants to create an escrow, hire a freelancer, or start a project:
+1. Acknowledge their interest
+2. Explain that you'll collect 6 pieces of information
+3. Start by asking for the FIRST missing piece (usually project name)
+4. Be clear and specific about what you need
+
+## Example Responses:
+
+**Example 1 - User wants to create escrow:**
+User: "I want to hire a freelancer"
+You: "Great! I'll help you set up a secure escrow for your project.
+
+Let's start with the basics. What would you like to call this project? (e.g., 'E-commerce Website', 'Mobile App Development') [INTENT:ESCROW]"
+
+**Example 2 - User says "I am a client":**
+User: "I am a client"
+You: "Perfect! I'll help you create an escrow for your project.
+
+First, what's the project name? (e.g., 'Website Redesign', 'Mobile App') [INTENT:ESCROW]"
+
+**Example 2 - User says "I am a client":**
+User: "I am a client"
+You: "Perfect! I'll help you create a secure escrow for your project.
+
+Let's start with the project name. What would you like to call this project? (e.g., 'E-commerce Website', 'Mobile App Development') [INTENT:ESCROW]"
+
+**Example 3 - General question:**
+User: "What is Pacter?"
+You: "Pacter is a trustless escrow platform... [detailed explanation] [INTENT:GENERAL]"
+
+Current conversation stage: {stage}
+
+**Response Style**: Be warm, professional, and comprehensive. For general questions, provide detailed explanations. For escrow interest, be clear about the information collection process.
+
+Always end your response with one of these hidden classification tags:
+- [INTENT:ESCROW] - if user shows clear interest in creating escrow transactions
+- [INTENT:GENERAL] - for greetings, general conversation, or information requests
+
+**CRITICAL**: When starting escrow collection, immediately ask for the FIRST missing piece of information. Don't wait for the user to provide it voluntarily.`;
 
         const prompt = ChatPromptTemplate.fromMessages([
-            ["system", SYSTEM_TEMPLATE],
+            ["system", INITIAL_SYSTEM_TEMPLATE],
             new MessagesPlaceholder({ variableName: "chat_history", optional: true }),
             ["human", "{input}"]
         ]);
 
-        const response = await prompt.pipe(model).invoke({ input: state.input, chat_history: state.chatHistory });
+        const response = await prompt.pipe(model).invoke({ 
+            input: state.input, 
+            chat_history: state.chatHistory,
+            stage: state.stage || 'initial'
+        });
 
-        console.log(response.content, "Initial Message");
+        console.log(response.content, "Initial Node Response");
 
         const content = response.content as string;
         
-        // Check if it's a contract creation request
-        if (content.includes("contract_creation")) {
-            return { 
-                messages: [response.content], 
-                operation: "contract_creation",
-                // Preserve chat history
-                chatHistory: state.chatHistory,
-                walletAddress: state.walletAddress
-            };
-        }
+        // Extract the intent classification from the response
+        let operation = "end";  // Default to end
+        let nextStage = 'initial';
+        let progress = 0;
+        let stageIndex = 0;
         
-        if (content.includes("contribute_node")) {
-            return { 
-                messages: [response.content], 
-                operation: "contribute_node",
-                // Preserve chat history
-                chatHistory: state.chatHistory,
-                walletAddress: state.walletAddress
-            };
-        } else if (content.includes("unknown")) {
-            const CONVERSATIONAL_TEMPLATE = `You are an AI assistant for Pacter, a platform focused on smart contract creation and automated contract management.
+        if (content.includes("[INTENT:ESCROW]")) {
+            operation = "collect_initiator_info";
+            nextStage = 'information_collection';
+            progress = 10;
+            stageIndex = 1;
+        }
 
-Use the conversation history to provide contextual responses. When users ask about topics outside of contract creation or project contributions, provide helpful information while gently guiding them toward Pacter's contract creation capabilities.
+        // Clean the response by removing the intent tag before returning to user
+        const cleanedContent = content.replace(/\[INTENT:(ESCROW|GENERAL)\]/g, '').trim();
 
-Respond in a friendly, professional manner and offer to help with contract creation if appropriate. Reference previous conversation context when relevant.`;
-
-            const conversationalPrompt = ChatPromptTemplate.fromMessages([
-                ["system", CONVERSATIONAL_TEMPLATE],
-                new MessagesPlaceholder({ variableName: "chat_history", optional: true }),
-                ["human", "{input}"]
-            ]);
-            const summaryModel = model.withConfig({ runName: "Summarizer" });
-            const conversationalResponse = await conversationalPrompt.pipe(summaryModel).invoke({ input: state.input, chat_history: state.chatHistory });
-
-            return { 
-                result: conversationalResponse.content as string, 
-                messages: [conversationalResponse.content],
-                // Preserve chat history
-                chatHistory: state.chatHistory,
-                walletAddress: state.walletAddress
-            };
-        } 
+        return { 
+            result: cleanedContent,
+            messages: [cleanedContent], 
+            operation: operation,
+            stage: nextStage,
+            information_collection: operation === "collect_initiator_info",
+            progress: progress,
+            stageIndex: stageIndex,
+            currentFlowStage: nextStage === 'information_collection' ? 'Project Details Entered' : 'Identity Selected',
+            isStageComplete: false,
+            validationErrors: [],
+            collectedFields: {
+                projectName: false,
+                projectDescription: false,
+                clientName: false,
+                email: false,
+                walletAddress: !!state.walletAddress,
+                paymentAmount: false,
+            }
+        };
     });
 
-    // **D. LangGraph Node Implementation**
+    // Information Collection Node: Systematically collects all required project details
+    graph.addNode("collect_initiator_info", async (state: ProjectState) => {
+        const COLLECTION_SYSTEM_TEMPLATE = `You are Pacter AI's information collection specialist. Your role is to systematically gather the 6 essential project details needed for escrow setup.
 
-    // Node: Interactive bulk extraction and validation (using descriptions/examples)
-    graph.addNode("collect_initiator_info", async (state: guildState) => {
-        // Include chat history in the prompt for better context
-        const promptStr = buildInfoPrompt(InitiatorContractSchema);
+## CRITICAL RULES - READ CAREFULLY:
+1. **NEVER ASSUME OR INVENT INFORMATION** - Only use what the user explicitly provides
+2. **ONE QUESTION AT A TIME** - Ask for exactly ONE missing field per response
+3. **EXTRACT ONLY FROM USER INPUT** - Parse the current user message for information
+4. **NO DEFAULT VALUES** - Don't fill in missing information with placeholders or assumptions
+5. **VALIDATE BEFORE STORING** - Only store information that was actually provided by the user
+
+## Required Information (6 items):
+1. **Project Name** - Clear, descriptive title (e.g., "E-commerce Website", "Mobile App")
+2. **Project Description** - Detailed scope, what needs to be built (minimum 10 words)
+3. **Client Name** - Full name of the person/company hiring (e.g., "John Doe", "Acme Corp")
+4. **Email Address** - Valid email format (e.g., "john@example.com")
+5. **Wallet Address** - 0G blockchain wallet (automatically captured if connected)
+6. **Payment Amount** - Total project cost in INR (numbers only, e.g., "50000")
+
+## Internal Collection Status (DO NOT SHOW TO USER):
+{collection_status}
+
+## Internal Previously Collected Information (DO NOT SHOW TO USER):
+{collected_info}
+
+**IMPORTANT**: The collection status and collected info above are for YOUR REFERENCE ONLY. DO NOT display this raw data to the user. Instead, acknowledge what they provided in a natural, conversational way.
+
+## Collection Strategy:
+- **ACKNOWLEDGE FIRST**: If user provided information, acknowledge it specifically
+- **EXTRACT CAREFULLY**: Only extract information that is clearly stated in the user's message
+- **ASK FOR NEXT**: Request the NEXT missing field with clear examples
+- **BE SPECIFIC**: Give examples of what you're asking for
+- **NEVER REPEAT**: Don't ask for information that's already collected
+
+## Example Interactions:
+
+**Example 1 - User says "I am a client":**
+User: "I am a client"
+You: "Great! I'll help you set up a secure escrow for your project. I need to collect a few details:
+
+Let's start with the project name. What would you like to call this project? (e.g., 'E-commerce Website', 'Mobile App Development')"
+
+**Example 2 - User provides project name:**
+User: "Website Redesign"
+You: "Perfect! ✅ Project Name: Website Redesign
+
+Now, can you describe what needs to be built? Please provide details about the scope and requirements."
+
+**Example 3 - User provides name and email:**
+User: "I'm John Doe, email is john@example.com"
+You: "Excellent! I've saved:
+✅ Client Name: John Doe
+✅ Email: john@example.com
+
+What's the project name? (e.g., 'Mobile App Development', 'Website Redesign')"
+
+**Example 4 - User provides payment amount:**
+User: "The budget is 50000 rupees"
+You: "Great! ✅ Payment Amount: ₹50,000 INR
+
+All information collected! Let me prepare the final summary for you. [READY_FOR_DATA]"
+
+## Response Format:
+1. If user provided new information: Acknowledge it specifically with ✅
+2. **DO NOT show raw collection status or missing fields list**
+3. Ask for the NEXT missing field in a natural, conversational way with examples
+4. Be encouraging, professional, and friendly
+5. Keep responses concise and focused on ONE question at a time
+
+End your response with:
+- [CONTINUE_INFO] - if more information is needed
+- [READY_FOR_DATA] - if all 6 items are collected
+
+Current stage: {stage}`;
+
         const prompt = ChatPromptTemplate.fromMessages([
-            ["system", promptStr],
-            new MessagesPlaceholder({ variableName: "chat_history", optional: true }),
-            ["human", state.input]
-        ]);
-        try {
-            const response = await prompt.pipe(model).invoke({ 
-                input: state.input,
-                chat_history: state.chatHistory 
-            });
-            let extracted = {};
-            try {
-                const contentString = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
-                extracted = JSON.parse(contentString.replace(/```json|```/g, "").trim());
-                const check = InitiatorContractSchema.safeParse(extracted);
-                if (!check.success) {
-                    // Produce missing/error fields with user-friendly descriptions
-                    const missing = check.error.errors.map(e => {
-                        const fieldPath = e.path.join('.');
-                        let message = e.message;
-                        let userFriendlyField = fieldPath;
-                        
-                        // Replace technical field names with user-friendly labels
-                        if (fieldPath === 'parties.partyA.email') {
-                            userFriendlyField = 'Your email address';
-                            if (e.code === 'invalid_string') {
-                                message = 'must be a valid email format (e.g., user@example.com)';
-                            }
-                        } else if (fieldPath === 'parties.partyA.walletAddress') {
-                            userFriendlyField = 'Your wallet address';
-                            if (e.message.includes('start')) {
-                                message = 'must start with "0x"';
-                            } else if (e.message.includes('length')) {
-                                message = 'must be exactly 42 characters long';
-                            }
-                        } else if (fieldPath === 'parties.partyA.name') {
-                            userFriendlyField = 'Your full name';
-                            message = 'is required';
-                        } else if (fieldPath === 'projectDetails.deliverables') {
-                            userFriendlyField = 'Project deliverables';
-                            if (e.code === 'invalid_type') {
-                                message = 'must be provided as a list of items';
-                            }
-                        } else if (fieldPath === 'projectDetails.timeline') {
-                            userFriendlyField = 'Project timeline';
-                            message = 'is required (e.g., "30 days")';
-                        } else if (fieldPath === 'projectDetails.startDate') {
-                            userFriendlyField = 'Project start date';
-                            message = 'is required (format: YYYY-MM-DD)';
-                        } else if (fieldPath === 'projectDetails.endDate') {
-                            userFriendlyField = 'Project end date';
-                            message = 'is required (format: YYYY-MM-DD)';
-                        } else if (fieldPath === 'escrow.totalAmount') {
-                            userFriendlyField = 'Total contract amount';
-                            message = 'is required';
-                        } else if (fieldPath === 'escrow.currency') {
-                            userFriendlyField = 'Currency';
-                            message = 'is required (e.g., USDC, INR, ETH)';
-                        } else if (fieldPath === 'name') {
-                            userFriendlyField = 'Contract name';
-                            message = 'is required';
-                        } else if (fieldPath === 'description') {
-                            userFriendlyField = 'Project description';
-                            message = 'is required';
-                        } else if (fieldPath === 'projectType') {
-                            userFriendlyField = 'Project type';
-                            message = 'is required';
-                        }
-                        
-                        return `${userFriendlyField} ${message}`;
-                    });
-                    return { 
-                        stage: "need_more", 
-                        missingFields: missing, 
-                        messages: ["Please correct the following validation errors:\n" + missing.join("\n")],
-                        validationErrors: missing,
-                        formData: extracted,
-                        // Preserve chat history for context
-                        chatHistory: state.chatHistory
-                    };
-                }
-                return { 
-                    data: check.data, 
-                    stage: "validate", 
-                    messages: ["Great! I've collected all the necessary information. Let me prepare your contract details for review."],
-                    formData: check.data,
-                    // Preserve chat history for context
-                    chatHistory: state.chatHistory
-                };
-            } catch (err) {
-                return { 
-                    stage: "error", 
-                    messages: ["Could not parse contract info. Please re-enter details."],
-                    validationErrors: ["Invalid JSON format"],
-                    chatHistory: state.chatHistory
-                };
-            }
-        } catch {
-            return { 
-                stage: "error", 
-                messages: ["Could not interact with LLM."],
-                validationErrors: ["LLM connection error"],
-                chatHistory: state.chatHistory
-            };
-        }
-    });
-
-    // Node: Request missing fields, with metadata
-    graph.addNode("request_missing_info", async (state: guildState) => {
-        return {
-            messages: [
-                "To proceed, please provide these details:\n" + state.missingFields?.join("\n")
-            ],
-            stage: "waiting",
-            // Preserve all state information for continuity
-            chatHistory: state.chatHistory,
-            formData: state.formData,
-            validationErrors: state.validationErrors
-        };
-    });
-
-    // Node: Confirm and finalize
-    graph.addNode("confirm", async (state: guildState) => {
-        const input = state.input?.toLowerCase().trim();
-        
-        // Only proceed to finalization with explicit confirmation
-        if (input && (input === "yes" || input === "y" || input === "confirm" || input.includes("yes") || input.includes("confirm"))) {
-            return { 
-                stage: "finalize", 
-                confirmed: true,
-                // Preserve chat history
-                chatHistory: state.chatHistory,
-                walletAddress: state.walletAddress
-            };
-        } else if (input && (input === "no" || input === "n" || input === "edit" || input.includes("no") || input.includes("edit"))) {
-            return { 
-                stage: "collect_initiator_info", 
-                confirmed: false, 
-                messages: ["Please provide the correct information."],
-                // Preserve chat history
-                chatHistory: state.chatHistory,
-                walletAddress: state.walletAddress
-            };
-        } else {
-            // For any other input, show contract summary and ask for explicit confirmation
-            const contractSummary = JSON.stringify(state.data, null, 2);
-            const confirmationMessage = `
-## Contract Summary
-
-Here's your contract setup:
-
-\`\`\`json
-${contractSummary}
-\`\`\`
-
-Please review the details above. Reply with:
-- **"yes"** or **"confirm"** to proceed with contract creation
-- **"no"** or **"edit"** to make changes
-- Specify any changes you'd like to make
-
-Is this correct?`;
-
-            return {
-                messages: [confirmationMessage],
-                stage: "awaiting_confirmation",
-                confirmed: null, // Explicitly set to null to indicate waiting
-                // Preserve chat history
-                chatHistory: state.chatHistory,
-                walletAddress: state.walletAddress
-            };
-        }
-    });
-
-
-
-    // Node: Validation and confirmation
-    graph.addNode("validate", async (state: guildState) => {
-        const data = state.data;
-        const summary = `Contract Summary:\n${JSON.stringify(data, null, 2)}`;
-        return { 
-            stage: "confirm", 
-            messages: [summary + "\n\nDoes this look correct? (yes/no)"],
-            // Preserve chat history
-            chatHistory: state.chatHistory,
-            walletAddress: state.walletAddress
-        };
-    });
-
-    // Node: Finalize contract
-    graph.addNode("finalize", async (state: guildState) => {
-        const contractId = `contract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const contractData = {
-            id: contractId,
-            data: state.data,
-            timestamp: new Date().toISOString(),
-            status: 'finalized'
-        };
-        
-        return { 
-            stage: "complete", 
-            contractId,
-            contractData,
-            messages: [`Contract finalized successfully! Contract ID: ${contractId}`],
-            // Preserve chat history
-            chatHistory: state.chatHistory,
-            walletAddress: state.walletAddress
-        };
-    });
-
-    //@ts-ignore
-    graph.addEdge(START, "initial_node");
-    //@ts-ignore
-    graph.addConditionalEdges("initial_node",
-        async (state) => {
-            if (!state.messages || state.messages.length === 0) {
-                console.error("No messages in state");
-                return "end";
-            }
-
-            if (state.operation === "contract_creation") {
-                return "collect_initiator_info";
-            } else if (state.operation === "contribute_node") {
-                return "contribute_node";
-            } else if (state.result) {
-                return "end";
-            }
-        },
-        {
-            collect_initiator_info: "collect_initiator_info",
-            contribute_node: "contribute_node",
-            end: END,
-        }
-    );
-
-    // **E. Routing**
-    //@ts-ignore
-    graph.addConditionalEdges("collect_initiator_info",
-        (state) => {
-            if (state.stage === "need_more") return "request_missing_info";
-            if (state.stage === "validate") return "validate";
-            return "confirm";
-        },
-        { 
-            request_missing_info: "request_missing_info", 
-            validate: "validate",
-            confirm: "confirm" 
-        }
-    );
-    //@ts-ignore
-    graph.addEdge("request_missing_info", END); // Wait for user
-    //@ts-ignore
-    graph.addEdge("validate", "confirm"); // validate goes to confirm
-    //@ts-ignore
-    graph.addConditionalEdges("confirm",
-        (state) => {
-            if (state.confirmed === true) return "finalize";
-            if (state.confirmed === false) return "collect_initiator_info";
-            // If confirmed is null or undefined, end the flow to wait for user input
-            return "end";
-        },
-        { 
-            finalize: "finalize", 
-            collect_initiator_info: "collect_initiator_info",
-            end: END
-        }
-    );
-    //@ts-ignore
-    graph.addEdge("finalize", END);
-
-    // Add the contribute_node
-    graph.addNode("contribute_node", async (state: guildState) => {
-        console.log("Processing contribution or error report");
-
-        const CONTRIBUTE_TEMPLATE = `You are an AI assistant for Pacter, tasked with processing user contributions and error reports. Your job is to analyze the user's input and create a structured JSON response containing the following fields:
-
-        - type: Either "error_report" or "code_contribution"
-        - description: A brief summary of the error or contribution
-        - details: More detailed information about the error or contribution
-        - impact: Potential impact of the error or the benefit of the contribution
-        - priority: Suggested priority (low, medium, high)
-
-        Based on the user's input, create a JSON object with these fields. Be concise but informative in your responses.`;
-
-        const contributePrompt = ChatPromptTemplate.fromMessages([
-            ["system", CONTRIBUTE_TEMPLATE],
+            ["system", COLLECTION_SYSTEM_TEMPLATE],
             new MessagesPlaceholder({ variableName: "chat_history", optional: true }),
             ["human", "{input}"]
         ]);
 
+        // Prepare collected info summary
+        const collectedInfo = {
+            projectInfo: state.projectInfo || {},
+            clientInfo: state.clientInfo || {},
+            financialInfo: state.financialInfo || {}
+        };
+
+        // Prepare collection status
+        const collectionStatus = Object.entries(state.collectedFields || {}).map(([field, collected]) => 
+            `- ${field}: ${collected ? '✅ Collected' : '❌ Missing'}`
+        ).join('\n');
+
+        const response = await prompt.pipe(model).invoke({ 
+            input: state.input, 
+            chat_history: state.chatHistory,
+            stage: state.stage || 'information_collection',
+            collected_info: JSON.stringify(collectedInfo, null, 2),
+            collection_status: collectionStatus
+        });
+
+        console.log(response.content, "Collection Node Response");
+
+        // Use structured extraction to capture information
+        let extractedData = {};
+        const updatedState = { ...state };
+        
+        // Initialize state objects if they don't exist
+        if (!updatedState.projectInfo) updatedState.projectInfo = {};
+        if (!updatedState.clientInfo) updatedState.clientInfo = {};
+        if (!updatedState.financialInfo) updatedState.financialInfo = {};
+        
         try {
-            const response = await contributePrompt.pipe(model).invoke({ 
-                input: state.input, 
-                chat_history: state.chatHistory
+            const structuredLLM = model.withStructuredOutput(UserInputExtractionSchema, {
+                name: "information_extraction",
+                method: "function_calling"
             });
-
-            const contributionData = JSON.parse(response.content as string);
-
-            // Store contribution data in state instead of file system
-            const timestamp = new Date().toISOString().replace(/:/g, '-');
-            const contributionId = `contribution_${timestamp}`;
             
-            const structuredContribution = {
-                id: contributionId,
-                ...contributionData,
-                submittedAt: new Date().toISOString(),
-                status: 'received'
-            };
-
-            return { 
-                result: "Thank you for your contribution. Your response has been received successfully and will be reviewed by our team.",
-                contributionData: structuredContribution,
-                messages: [response.content],
-                // Preserve chat history
-                chatHistory: state.chatHistory,
-                walletAddress: state.walletAddress
-            };
+            const structuredResponse = await structuredLLM.invoke([
+                new HumanMessage(state.input)
+            ]);
+            
+            console.log("Structured extraction result:", JSON.stringify(structuredResponse, null, 2));
+            
+            if (structuredResponse && typeof structuredResponse === 'object' && structuredResponse.extractedInfo) {
+                extractedData = structuredResponse;
+                const extracted = structuredResponse.extractedInfo;
+                
+                // Update project info - preserve existing data
+                if (extracted.projectName || extracted.projectDescription || extracted.timeline || extracted.deliverables) {
+                    updatedState.projectInfo = { 
+                        ...updatedState.projectInfo,
+                        ...(extracted.projectName && { projectName: extracted.projectName }),
+                        ...(extracted.projectDescription && { projectDescription: extracted.projectDescription }),
+                        ...(extracted.timeline && { timeline: extracted.timeline }),
+                        ...(extracted.deliverables && { deliverables: extracted.deliverables })
+                    };
+                }
+                
+                // Update client info - preserve existing data
+                if (extracted.clientName || extracted.email || extracted.walletAddress) {
+                    updatedState.clientInfo = { 
+                        ...updatedState.clientInfo,
+                        ...(extracted.clientName && { clientName: extracted.clientName }),
+                        ...(extracted.email && { email: extracted.email }),
+                        ...(extracted.walletAddress && { walletAddress: extracted.walletAddress })
+                    };
+                }
+                
+                // Update financial info - preserve existing data
+                if (extracted.paymentAmount) {
+                    updatedState.financialInfo = { 
+                        ...updatedState.financialInfo,
+                        paymentAmount: extracted.paymentAmount,
+                        currency: 'INR'
+                    };
+                }
+            }
         } catch (error) {
-            console.error("Error in contribute_node:", error);
-            return { 
-                result: "Your error has been received successfully and will be reviewed by our team.",
-                messages: ["Error processing contribution"],
-                // Preserve chat history
-                chatHistory: state.chatHistory,
-                walletAddress: state.walletAddress
-            };
+            console.log("Structured extraction failed, using fallback", error);
         }
+        
+        // If wallet address is provided in state but not in clientInfo, add it
+        if (state.walletAddress && !updatedState.clientInfo.walletAddress) {
+            updatedState.clientInfo.walletAddress = state.walletAddress;
+        }
+
+        // Update collected fields tracking
+        const newCollectedFields = {
+            projectName: !!(updatedState.projectInfo?.projectName),
+            projectDescription: !!(updatedState.projectInfo?.projectDescription),
+            clientName: !!(updatedState.clientInfo?.clientName),
+            email: !!(updatedState.clientInfo?.email),
+            walletAddress: !!(updatedState.clientInfo?.walletAddress || state.walletAddress),
+            paymentAmount: !!(updatedState.financialInfo?.paymentAmount),
+        };
+
+        // Calculate progress based on collected fields
+        const collectedCount = Object.values(newCollectedFields).filter(Boolean).length;
+        const progress = Math.round((collectedCount / 6) * 80) + 10; // 10-90% range
+        
+        console.log(`Collection progress: ${collectedCount}/6 fields collected (${progress}%)`);
+        console.log("Collected fields:", newCollectedFields);
+        
+        // Determine next operation
+        const content = response.content as string;
+        let operation = "collect_initiator_info"; // Default: stay in collection mode
+        let nextStage = 'information_collection';
+        let isComplete = false;
+        
+        // Only move to final processing when ALL 6 fields are collected
+        if (content.includes("[READY_FOR_DATA]") || collectedCount === 6) {
+            operation = "request_missing_info";
+            nextStage = 'data_ready';
+            isComplete = true;
+            console.log("All information collected! Moving to final processing.");
+        } else {
+            console.log(`Still collecting information. Missing ${6 - collectedCount} fields.`);
+        }
+
+        // Clean response
+        const cleanedContent = content.replace(/\[(CONTINUE_INFO|READY_FOR_DATA)\]/g, '').trim();
+
+        return { 
+            result: cleanedContent,
+            messages: [cleanedContent], 
+            operation: operation,
+            stage: nextStage,
+            projectInfo: updatedState.projectInfo,
+            clientInfo: updatedState.clientInfo,
+            financialInfo: updatedState.financialInfo,
+            progress: progress,
+            stageIndex: isComplete ? 2 : 1,
+            currentFlowStage: isComplete ? 'Information Complete' : 'Collecting Information',
+            isStageComplete: isComplete,
+            collectedFields: newCollectedFields,
+            stageData: {
+                extractedData,
+                collectedCount,
+                totalRequired: 6
+            },
+            validationErrors: []
+        };
     });
 
-    // Add the GitHub verification node
-    // Removed - no longer needed
+    // Final Data Processing Node: Validates and returns clean JSON
+    graph.addNode("request_missing_info", async (state: ProjectState) => {
+        const FINAL_SYSTEM_TEMPLATE = `You are Pacter AI's final data validator. Your role is to verify all collected information and provide a professional summary.
 
-    //@ts-ignore    
-    graph.addEdge("contribute_node", END);
+## CRITICAL VALIDATION RULES:
+1. **VERIFY ALL FIELDS** - Ensure all 6 required fields are present
+2. **NO ASSUMPTIONS** - Only use data that was actually collected
+3. **CLEAR SUMMARY** - Present information in a user-friendly format
 
-    // Compile the graph with recursion limit to prevent infinite loops
-    const compiledGraph = graph.compile({
-        recursionLimit: 50
+## Collected Information:
+
+### Project Details:
+- Project Name: {project_name}
+- Description: {project_description}
+
+### Client Information:
+- Client Name: {client_name}
+- Email: {email}
+- Wallet Address: {wallet_address}
+
+### Financial Details:
+- Payment Amount: ₹{payment_amount} INR
+- Platform Fee (2.5%): ₹{platform_fee} INR
+- Escrow Fee (0.5%): ₹{escrow_fee} INR
+- Total Escrow Amount: ₹{total_amount} INR
+- 0G Token Equivalent: {zeroG_equivalent} 0G
+
+## Your Task:
+Provide a professional summary that:
+
+1. **Congratulates** the user on completing information collection
+2. **Displays** all collected information in a clear format
+3. **Shows** the financial breakdown with fees
+4. **Explains** what happens next (contract generation and deployment)
+5. **Asks for confirmation** before proceeding
+
+## Response Format:
+
+🎉 **Information Collection Complete!**
+
+Here's a summary of your project details:
+
+**📋 Project Information:**
+• Project Name: [name]
+• Description: [description]
+
+**👤 Client Information:**
+• Name: [name]
+• Email: [email]
+• Wallet: [address]
+
+**💰 Financial Breakdown:**
+• Project Payment: ₹[amount] INR
+• Platform Fee (2.5%): ₹[fee] INR
+• Escrow Fee (0.5%): ₹[fee] INR
+• **Total Escrow Amount: ₹[total] INR**
+• 0G Token Equivalent: [amount] 0G
+
+**🔄 Next Steps:**
+1. Contract will be generated with these details
+2. Both parties will sign the contract
+3. Funds will be deposited into secure escrow
+4. Work begins once escrow is confirmed
+
+Please review the information above. If everything looks correct, we'll proceed with contract generation!
+
+Always end with: [DATA_COMPLETE]`;
+
+        const prompt = ChatPromptTemplate.fromMessages([
+            ["system", FINAL_SYSTEM_TEMPLATE],
+            new MessagesPlaceholder({ variableName: "chat_history", optional: true }),
+            ["human", "Please compile the final project data."]
+        ]);
+
+        // Calculate comprehensive financial information
+        const paymentAmount = state.financialInfo?.paymentAmount || 0;
+        const platformFee = Math.round((paymentAmount * 0.025) * 100) / 100; // 2.5%
+        const escrowFee = Math.round((paymentAmount * 0.005) * 100) / 100; // 0.5%
+        const totalAmount = paymentAmount + platformFee + escrowFee;
+        const zeroGEquivalent = Math.round((totalAmount * 0.1) * 100) / 100; // Mock rate
+
+        const response = await prompt.pipe(model).invoke({ 
+            chat_history: state.chatHistory,
+            stage: state.stage || 'data_ready',
+            project_name: state.projectInfo?.projectName || "Untitled Project",
+            project_description: state.projectInfo?.projectDescription || "No description",
+            timeline: state.projectInfo?.timeline || "To be determined",
+            client_name: state.clientInfo?.clientName || "Not provided",
+            email: state.clientInfo?.email || "Not provided",
+            wallet_address: state.clientInfo?.walletAddress || state.walletAddress || "Not provided",
+            payment_amount: paymentAmount.toFixed(2),
+            platform_fee: platformFee.toFixed(2),
+            escrow_fee: escrowFee.toFixed(2),
+            total_amount: totalAmount.toFixed(2),
+            zeroG_equivalent: zeroGEquivalent.toFixed(2)
+        });
+
+        console.log(response.content, "Final Data Node Response");
+
+        // Create comprehensive final data object - ONLY with collected information
+        const finalProjectData = {
+            projectInfo: {
+                projectName: state.projectInfo?.projectName || "",
+                projectDescription: state.projectInfo?.projectDescription || "",
+                timeline: state.projectInfo?.timeline || "To be determined",
+                deliverables: state.projectInfo?.deliverables || []
+            },
+            clientInfo: {
+                clientName: state.clientInfo?.clientName || "",
+                email: state.clientInfo?.email || "",
+                walletAddress: state.clientInfo?.walletAddress || state.walletAddress || ""
+            },
+            financialInfo: {
+                paymentAmount: paymentAmount,
+                platformFees: platformFee,
+                escrowFee: escrowFee,
+                totalEscrowAmount: totalAmount,
+                currency: "INR",
+                zeroGEquivalent: zeroGEquivalent,
+                feeBreakdown: {
+                    projectPayment: paymentAmount,
+                    platformFee: platformFee,
+                    escrowFee: escrowFee,
+                    total: totalAmount
+                }
+            },
+            escrowDetails: {
+                escrowType: "freelance_project",
+                paymentMethod: "0G_tokens",
+                releaseCondition: "project_completion",
+                disputeResolution: "automated_mediation"
+            },
+            metadata: {
+                createdAt: new Date().toISOString(),
+                stage: "data_complete",
+                version: "1.0",
+                platform: "Pacter",
+                collectionComplete: true
+            }
+        };
+
+        // Update final collected fields
+        const finalCollectedFields = {
+            projectName: !!finalProjectData.projectInfo.projectName,
+            projectDescription: !!finalProjectData.projectInfo.projectDescription,
+            clientName: !!finalProjectData.clientInfo.clientName,
+            email: !!finalProjectData.clientInfo.email,
+            walletAddress: !!finalProjectData.clientInfo.walletAddress,
+            paymentAmount: !!finalProjectData.financialInfo.paymentAmount,
+        };
+
+        // Clean response and prepare JSON output
+        const content = response.content as string;
+        const cleanedContent = content.replace(/\[DATA_COMPLETE\]/g, '').trim();
+
+        // Create the JSON output with markers (hidden from user)
+        const jsonOutput = `[JSON_DATA_START]${JSON.stringify(finalProjectData, null, 2)}[JSON_DATA_END]`;
+        
+        // Show a clean success message to the user
+        const userMessage = `✅ **Information Collection Successful!**
+
+Thank you for providing all the details. Your contract is now being prepared.
+
+**What's happening next:**
+• Generating legal contract with Indian law compliance
+• Processing with secure 0G Compute Network
+• Preparing escrow smart contract
+• Setting up blockchain verification
+
+Please wait while we create your secure contract...`;
+        
+        // Combine user message with hidden JSON data
+        const finalResponse = `${userMessage}\n\n${jsonOutput}`;
+
+        console.log("=== FINAL DATA READY ===");
+        console.log("JSON Output:", JSON.stringify(finalProjectData, null, 2));
+        console.log("🚀 INFERENCE READY - Triggering 0G Compute");
+
+        return { 
+            result: finalResponse,
+            messages: [finalResponse], 
+            operation: "end",
+            stage: 'completed',
+            projectInfo: finalProjectData.projectInfo,
+            clientInfo: finalProjectData.clientInfo,
+            financialInfo: finalProjectData.financialInfo,
+            finalData: finalProjectData,
+            progress: 100,
+            stageIndex: 3,
+            currentFlowStage: 'Data Complete',
+            isStageComplete: true,
+            collectedFields: finalCollectedFields,
+            stageData: {
+                finalProjectData,
+                completionTime: new Date().toISOString(),
+                totalFields: 6,
+                collectedFields: Object.values(finalCollectedFields).filter(Boolean).length,
+                jsonReady: true
+            },
+            validationErrors: [],
+            formData: finalProjectData,
+            // 0G Compute Integration - Signal that data is ready for inference
+            inferenceReady: true,
+            collectedData: finalProjectData
+        };
     });
-    
-    return compiledGraph;
+
+    // Stage-based routing function for efficient conversation flow
+    const routeByStage = (state: ProjectState) => {
+        console.log("=== START ROUTING ===");
+        console.log("Stage:", state.stage);
+        console.log("Operation:", state.operation);
+        console.log("Information Collection:", state.information_collection);
+        
+        // ALWAYS start with initial_node for first message or when no stage is set
+        if (!state.stage || state.stage === 'initial') {
+            console.log("→ Routing to initial_node (first message or initial stage)");
+            return "initial_node";
+        }
+        
+        // If in information collection stage, go to collection node
+        if (state.stage === 'information_collection') {
+            console.log("→ Routing to collect_initiator_info (collection stage)");
+            return "collect_initiator_info";
+        }
+        
+        // If data is ready, go to final processing
+        if (state.stage === 'data_ready') {
+            console.log("→ Routing to request_missing_info (data ready)");
+            return "request_missing_info";
+        }
+        
+        // Default: go to initial node
+        console.log("→ Routing to initial_node (default)");
+        return "initial_node";
+    };
+
+    // Add conditional edges for stage-based routing
+    graph.addConditionalEdges(START, routeByStage, {
+        //@ts-ignore
+        "initial_node": "initial_node",
+        //@ts-ignore
+        "collect_initiator_info": "collect_initiator_info",
+        //@ts-ignore
+        "request_missing_info": "request_missing_info"
+    });
+
+    // Add routing from initial_node based on user intent
+    //@ts-ignore
+    graph.addConditionalEdges("initial_node", (state: ProjectState) => {
+        if (state.operation === "collect_initiator_info") {
+            return "collect_initiator_info";
+        }
+        // Default to "end" string for all other cases
+        return "end";
+    }, {
+        "collect_initiator_info": "collect_initiator_info",
+        "end": END
+    });
+
+    // Add routing from collect_initiator_info based on completion status
+    //@ts-ignore
+    graph.addConditionalEdges("collect_initiator_info", (state: ProjectState) => {
+        console.log("Routing from collect_initiator_info. Operation:", state.operation, "Stage:", state.stage);
+        
+        // If all information is collected, move to final processing
+        if (state.operation === "request_missing_info" && state.stage === 'data_ready') {
+            console.log("→ Moving to request_missing_info (final processing)");
+            return "request_missing_info";
+        }
+        
+        // Otherwise, END and wait for next user message
+        console.log("→ Ending conversation (waiting for user input)");
+        return "end";
+    }, {
+        "request_missing_info": "request_missing_info",
+        "end": END
+    });
+
+    // Add edge from request_missing_info to END
+    //@ts-ignore
+    graph.addEdge("request_missing_info", END);
+
+    const data = graph.compile();
+    return data;
 }

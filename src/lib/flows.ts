@@ -17,8 +17,8 @@ export const EXECUTION_FLOW = [
   "Work in Progress",
   "Submission",
   "Review",
-  "Milestone Released",
-  "Contract Closed"
+  "Payment Approved",
+  "Contract Completed"
 ] as const;
 
 export type FlowStage = typeof INFORMATION_FLOW[number] | typeof EXECUTION_FLOW[number];

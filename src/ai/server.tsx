@@ -32,7 +32,14 @@ export async function streamRunnableUI({ chat_history, input, walletAddress }: {
         graphState = { ...graphState, ...values };
       }
     
-   
+      console.log(`Node: ${nodeName}, State Update:`, {
+        stage: (values as any)?.stage,
+        progress: (values as any)?.progress,
+        stageIndex: (values as any)?.stageIndex,
+        currentFlowStage: (values as any)?.currentFlowStage,
+        isStageComplete: (values as any)?.isStageComplete,
+        collectedFields: (values as any)?.collectedFields
+      });
     
    // Add a loading indicator when the stream starts
     if (nodeName === 'initial_node') {
@@ -51,9 +58,10 @@ if (nodeName !== 'end') {
         ui.update(<AIMessageText content={aiResponseContent} />);
       }
    
-      if (nodeName == 'escrow_node' && (values as any).contractData) {
-        console.log('Contract data:', (values as any).contractData);
-        ui.append(<SmartContractDisplay contractCode={(values as any).contractData as string} />);
+      // Handle final data display when information collection is complete
+      if (nodeName === 'request_missing_info' && (values as any).finalData) {
+        console.log('Final project data:', (values as any).finalData);
+        ui.append(<SmartContractDisplay contractCode={JSON.stringify((values as any).finalData, null, 2)} />);
       }
     }
     
@@ -64,7 +72,7 @@ if (nodeName !== 'end') {
   return { 
     ui: ui.value, 
     responseContent: aiResponseContent,
-    graphState: graphState // Return the complete graph state
+    graphState: graphState // Return the complete graph state with enhanced tracking
   };
 }
 

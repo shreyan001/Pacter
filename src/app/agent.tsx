@@ -32,10 +32,17 @@ const convertChatHistoryToMessages = (
     walletAddress: inputs.walletAddress
   });
 
+  // Filter out JSON data markers from response content
+  let cleanedResponseContent = result.responseContent;
+  if (cleanedResponseContent) {
+    // Remove JSON data blocks that are meant for backend processing only
+    cleanedResponseContent = cleanedResponseContent.replace(/\[JSON_DATA_START\][\s\S]*?\[JSON_DATA_END\]/g, '').trim();
+  }
+
   // Return both UI and state information
   return {
     ui: result.ui,
-    responseContent: result.responseContent,
+    responseContent: cleanedResponseContent,
     graphState: result.graphState
   };
 }
