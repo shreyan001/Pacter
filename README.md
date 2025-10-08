@@ -1,9 +1,49 @@
 
 
-## 📦 0G WaveHack Wave 2 Updates
+## 📦 0G WaveHack Wave 3 & 4 Updates
 
-Test instance for escrow deployment enabling NFT-to-0G token conversion through AI-powered contract generation. Users request iNFT resolution which gives template information to be utilized via agent interface(0G Compute), receive auto-generated contracts deployed through frontend, complete dual-party signatures, and finalize asset deposits for secure escrow completion. 
+### Wave 3 & 4: Enhanced Web Development Verification Escrow with Jurisdictional Legal NFTs
 
+We've significantly evolved Pacter from a simple escrow system to a comprehensive web development verification platform with jurisdictional legal backing. The platform now features a sophisticated multi-stage workflow with proper UX, leveraging 0G's powerful infrastructure for secure, transparent, and verifiable digital agreements.
+
+#### 🚀 Transformative Evolution Process
+
+Our journey from Wave 2 to Waves 3 & 4 represents a fundamental shift in how digital agreements are created, verified, and enforced:
+
+**From Simple Escrow to Comprehensive Verification Platform:**
+We've transformed the basic escrow functionality into a full-fledged verification system that handles the entire web development workflow. This evolution addresses the critical trust gap in freelance web development by providing automated verification of deliverables, secure milestone payments, and legally binding agreements.
+
+**Jurisdictional Legal Framework Integration:**
+We've pioneered the integration of jurisdiction-specific legal frameworks through our Indian Legal Contract NFT (INFT). This groundbreaking approach ensures that digital agreements have proper legal standing within specific jurisdictions, bridging the gap between blockchain technology and traditional legal systems.
+
+**Multi-Stage Verification Workflow:**
+Our enhanced system now features a sophisticated multi-stage verification process:
+1. **Information Collection** - Gathering project requirements, milestones, and payment terms
+2. **Contract Creation** - Generating legally binding agreements through our INFT framework
+3. **GitHub Integration** - Connecting to repositories for automated code verification
+4. **Code Extraction & Analysis** - Pulling and analyzing code changes for milestone verification
+5. **Client Review & Approval** - Enabling clients to review deliverables and approve payments
+6. **Secure Payment Release** - Automated milestone payments upon verification and approval
+
+**0G Infrastructure Utilization:**
+We've deeply integrated 0G's powerful infrastructure throughout our platform:
+- **0G Storage** - All contract data, code artifacts, and verification proofs are securely stored with immutable hashing
+- **0G Compute** - AI-powered contract analysis and verification through secure TEE-verified computation
+- **0G Chain** - Smart contract deployment for escrow management and payment processing
+
+#### 🌟 Major Advancements
+
+1. **Deployed Indian Legal Contract NFT (INFT)** - A legally binding digital contract framework specifically designed for the Indian jurisdiction, enabling enforceable freelance agreements with proper legal standing. The contract includes all necessary legal clauses, jurisdiction-specific provisions, and is minted as an NFT with immutable proof of existence.
+
+2. **Enhanced Verification Workflow** - A multi-stage process that collects, verifies, and validates web development deliverables through GitHub integration, with automated code extraction and analysis. The system pulls code from repositories, analyzes changes, and generates verification proofs that are stored on 0G Storage.
+
+3. **0G Storage Integration** - All code and verification artifacts are securely stored on 0G Storage with immutable proofs, ensuring transparency and auditability. Each verification step generates cryptographic proofs that are stored alongside the original data, creating an unalterable record of the entire process.
+
+4. **0G Compute Inference** - AI-powered contract analysis and amendment generation through secure TEE-verified computation. Our system uses advanced language models to analyze contracts, suggest amendments, and verify deliverables, all running in secure enclaves with cryptographic attestation.
+
+5. **Deal Maker Smart Contract** - A sophisticated escrow system acting as an autonomous middleman agent for secure deposits and AI-agent-approved milestone payments. The contract holds funds, releases payments based on verification results, and maintains a complete audit trail of all transactions.
+
+6. **Multi-Page UX Flow** - Redesigned user experience with clear stage indicators, proper information collection, and streamlined verification processes. The interface guides users through each step of the process, from contract creation to final payment, with intuitive navigation and real-time status updates.
 
 ### 📋 Project Information
 
@@ -11,8 +51,10 @@ Test instance for escrow deployment enabling NFT-to-0G token conversion through 
 |-----------|----------|
 | **Indian Legal INFT Agent** | [`0x50AfCE3f4C6235bAbFbCD31C8Dd1693E99046705`](https://chainscan-galileo.0g.ai/address/0x50AfCE3f4C6235bAbFbCD31C8Dd1693E99046705) |
 | **TEE Verifier Contract** | [`0x81bCd9AbdD3eCd4878AeB98b947f61ACa98b9288`](https://chainscan-galileo.0g.ai/address/0x81bCd9AbdD3eCd4878AeB98b947f61ACa98b9288) |
+| **IndiaFreelanceLegalNFTImpl** | [`0x9c38E1045Cf3b499199075bbC4E438E4faF900aB`](https://chainscan-galileo.0g.ai/address/0x9c38E1045Cf3b499199075bbC4E438E4faF900aB) |
+| **IndiaFreelanceLegalNFTBeacon** | [`0x2B31469af35BE50E233Df01F0944dA3203b7e456`](https://chainscan-galileo.0g.ai/address/0x2B31469af35BE50E233Df01F0944dA3203b7e456) |
 | **Minted Agent Token ID** | [Token #0](https://chainscan-galileo.0g.ai/tx/0x6b32607d05d29c4f74fa27d5666449a8e60bf93cc5366e7bbcf3708ee34ecb52) - Owner: `0x83CDBbA8359aAc6a25ACb70eb67dcF0E5eB2c607` |
-| **Escrow Contract (PacterEscrowV2)** | `[To be filled - Testnet deployment pending]` |
+| **Escrow Contract (PacterEscrowV2)** | [`0x259829717EbCe11350c37CB9B5d8f38Cb42E0988`](https://chainscan-galileo.0g.ai/address/0x259829717EbCe11350c37CB9B5d8f38Cb42E0988) |
 | **Network** | 0G Newton Testnet (Chain ID: 16602) |
 | **Demo Video** | `[Video Link - To be filled]` |
 | **Live Demo** | `[Demo URL - To be filled]` |
