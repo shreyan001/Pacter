@@ -56,8 +56,8 @@ We've deeply integrated 0G's powerful infrastructure throughout our platform:
 | **Minted Agent Token ID** | [Token #0](https://chainscan-galileo.0g.ai/tx/0x6b32607d05d29c4f74fa27d5666449a8e60bf93cc5366e7bbcf3708ee34ecb52) - Owner: `0x83CDBbA8359aAc6a25ACb70eb67dcF0E5eB2c607` |
 | **Escrow Contract (PacterEscrowV2)** | [`0x259829717EbCe11350c37CB9B5d8f38Cb42E0988`](https://chainscan-galileo.0g.ai/address/0x259829717EbCe11350c37CB9B5d8f38Cb42E0988) |
 | **Network** | 0G Newton Testnet (Chain ID: 16602) |
-| **Demo Video** | `[Video Link - To be filled]` |
-| **Live Demo** | `[Demo URL - To be filled]` |
+| **Demo Video** | [https://www.youtube.com/watch?v=ckIWzmrfOIc](https://www.youtube.com/watch?v=ckIWzmrfOIc) |
+| **Live Demo** | [https://pacter.vercel.app/](https://pacter.vercel.app/) |
 
 ---
 
