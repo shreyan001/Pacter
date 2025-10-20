@@ -20,6 +20,7 @@ export default function CreateDiagram({
   
   const flowData = FLOW_METADATA[flowType];
   const stages = flowData.stages;
+  const descriptions = flowData.stageDescriptions;
 
   const getStageStatus = (index: number): StageStatus => {
     // Use graph state information if available
@@ -87,6 +88,7 @@ export default function CreateDiagram({
               status={getStageStatus(index)}
               index={index}
               isLast={index === stages.length - 1}
+              description={descriptions?.[stage]}
             />
           ))}
         </div>

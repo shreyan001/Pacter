@@ -7,7 +7,8 @@ export default function StageNode({
   stage, 
   status, 
   index, 
-  isLast = false 
+  isLast = false,
+  description
 }: StageNodeProps) {
   
   const getStatusStyles = () => {
@@ -76,6 +77,11 @@ export default function StageNode({
         }`}>
           {stage}
         </h3>
+        {description && (
+          <p className="mt-1 text-xs text-gray-500 font-mono leading-relaxed">
+            {description}
+          </p>
+        )}
         
         {/* Status Badge */}
         <div className="mt-2">

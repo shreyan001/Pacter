@@ -70,6 +70,7 @@ export interface StageNodeProps {
   status: StageStatus;
   index: number;
   isLast?: boolean;
+  description?: string;
 }
 
 // Chat component props

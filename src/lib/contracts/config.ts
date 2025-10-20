@@ -67,6 +67,18 @@ export const CONTRACT_ADDRESSES: Record<string, Address> = {
 };
 
 /**
+ * Address of the shared 1% bonus vault used by milestone/time-locked escrows
+ */
+export const DEFI_VAULT_ADDRESS: Address = (
+  process.env.NEXT_PUBLIC_PACTER_DEFI_VAULT_ADDRESS ||
+  '0xa570E01A19A4bE995f5A27498b22eC6CbC2F1283'
+) as Address;
+
+export function getDeFiVaultAddress(): Address {
+  return DEFI_VAULT_ADDRESS;
+}
+
+/**
  * Get contract address for current network
  */
 export function getContractAddress(): Address {
@@ -158,6 +170,9 @@ export function getConfigSummary() {
     },
     contract: {
       address: contractAddress,
+    },
+    defiVault: {
+      address: DEFI_VAULT_ADDRESS,
     },
     fees: FEE_CONFIG,
     currency: CURRENCY_CONFIG,
