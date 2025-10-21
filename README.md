@@ -45,11 +45,11 @@ All milestone approvals, arbitration triggers, and vault interactions now run th
 
 | Component | Address |
 |---|---|
-| 🏦 Pacter DeFi Vault (1%) | 0xa570E01A19A4bE995f5A27498b22eC6CbC2F1283 |
-| ⏱ Time-Locked Escrow Contract | 0xAf80C53e4A85E5f14aB304A26aDCfEf723f610a4 |
-| 💼 Milestone Escrow Contract | 0x5845B17df53b0E3b5a9be04908294cDa8c4FA3e0 |
-| 🌐 Live Demo | https://pacter.vercel.app |
-| 🎥 Demo Video | https://www.youtube.com/watch?v=zkIWkmrfOIc |
+| 🏦 Pacter DeFi Vault (1%) | [`0xa570E01A19A4bE995f5A27498b22eC6CbC2F1283`](https://chainscan-galileo.0g.ai/address/0xa570E01A19A4bE995f5A27498b22eC6CbC2F1283) |
+| ⏱ Time-Locked Escrow Contract | [`0xAf80C53e4A85E5f14aB304A26aDCfEf723f610a4`](https://chainscan-galileo.0g.ai/address/0xAf80C53e4A85E5f14aB304A26aDCfEf723f610a4) |
+| 💼 Milestone Escrow Contract | [`0x5845B17df53b0E3b5a9be04908294cDa8c4FA3e0`](https://chainscan-galileo.0g.ai/address/0x5845B17df53b0E3b5a9be04908294cDa8c4FA3e0) |
+| 🌐 Live Demo | [pacter.vercel.app](https://pacter.vercel.app) |
+| 🎥 Demo Video | [YouTube Demo](https://www.youtube.com/watch?v=zkIWkmrfOIc) |
 
 ### 🧭 Summary
 
