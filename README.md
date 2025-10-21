@@ -1,4 +1,68 @@
 
+# ⚡ Pacter — Wave 5 Update
+
+## Inference-Driven Arbitration, Productive Escrow Funds, and Time-Based Automation
+
+*(Built on 0G Chain with iNFT Agents and Secure On-Chain Inference)*
+
+This wave introduces a major step toward self-governing digital agreements — enabling Pacter contracts to arbitrate disputes autonomously, utilize idle escrow assets through insured DeFi vaults, and support continuous, inference-verified service payments.
+
+### 🧱 Core Upgrades
+
+#### 1️⃣ Arbitration-Enabled Escrow
+Dispute handling is no longer an afterthought. Every escrow contract — whether milestone-based or time-locked — can now route unresolved cases to an arbitration contract address. When both parties signal disagreement, the inference agent compiles all context: signed terms, verification logs, storage hashes, and timestamps, then forwards them on-chain to the arbitration layer. This arbitration layer can connect with on-chain courts such as Kleros-style juror systems or specialized resolution contracts designed for 0G. Each case carries a full data payload, letting external protocols evaluate and release funds according to verified rulings. If no dispute arises within the set period, the contract auto-releases funds — a built-in "timeout" safeguard ensuring no value remains locked indefinitely.
+
+*Example:*
+A freelancer completes Milestone 2 for a web app project. The AI verification agent detects missing deployment files and flags a mismatch. The client disagrees and raises a dispute. Pacter's contract packages the repo hash, verification proof, and signatures, then sends them to the arbitration address. The arbiter (e.g., a 0G-based dispute contract) reviews the evidence and automatically resolves payment, updating the main escrow state.
+
+#### 2️⃣ Time-Locked Inference Escrow
+To support API rentals and compute-as-a-service, we deployed a time-based escrow mechanism. Clients pre-fund a contract for a defined duration — for example, five days of AI inference API access. The funds unlock gradually as time progresses, verified continuously by the agent testing the API endpoint's responsiveness. If the service fails or latency exceeds the SLA, the agent pauses payment in real-time. When uptime is restored, the same contract resumes without redeployment.
+
+*Example:*
+A startup offers GPU inference endpoints through Pacter. A user books 5 days of compute, depositing funds into the time-locked escrow. The AI agent periodically calls the endpoint — if 12 hours of downtime occur, the system auto-deducts the inactive duration from total payout. The client's remaining balance continues earning yield in the vault until the session resumes.
+
+#### 3️⃣ Productive Escrow Funds via Insured DeFi Vaults
+Previously, escrow deposits were idle, serving only as locked capital. Now, clients can opt-in to route escrow balances into stable, insured DeFi vaults through the integrated Pacter DeFi Vault (1%). This converts dormant deposits into yield-earning assets — generating low-risk returns during the contract lifecycle. When the escrow concludes, the contract withdraws both principal + yield, splitting profits:
+- 90% to the client (fund originator)
+- 10% to the freelancer (as opportunity reward)
+Future iterations will integrate audited, insured vaults (Aave-style) to minimize risk while maintaining transparency.
+
+#### 4️⃣ Inference Agents with Transaction Transparency
+All milestone approvals, arbitration triggers, and vault interactions now run through inference-based on-chain commands. Each action emits a verifiable log showing which command executed the transaction — a cryptographically attested audit trail on 0G Storage. This brings deterministic explainability to every financial operation, turning the contract into a transparent, interpretable state machine.
+
+### 🧩 Real-World Impact
+
+| Scenario | Description |
+|---|---|
+| Freelance Development | Client deploys milestone escrow; agent verifies GitHub commits, manages disputes via arbitration, and auto-invests idle funds. |
+| AI API Rental / Compute Access | Time-locked escrow streams payments for live services; inference monitors uptime, pauses payouts if conditions fail. |
+| DeFi Yield Utilization | Escrow deposits earn passive yield via trusted vaults, enhancing capital efficiency without sacrificing safety. |
+| Autonomous Arbitration | Disputes route to on-chain courts for verifiable, bias-free outcomes. |
+
+---
+
+### 🔗 Deployed on 0G Newton Testnet (Chain ID 16602)
+
+| Component | Address |
+|---|---|
+| 🏦 Pacter DeFi Vault (1%) | 0xa570E01A19A4bE995f5A27498b22eC6CbC2F1283 |
+| ⏱ Time-Locked Escrow Contract | 0xAf80C53e4A85E5f14aB304A26aDCfEf723f610a4 |
+| 💼 Milestone Escrow Contract | 0x5845B17df53b0E3b5a9be04908294cDa8c4FA3e0 |
+| 🌐 Live Demo | https://pacter.vercel.app |
+| 🎥 Demo Video | https://www.youtube.com/watch?v=zkIWkmrfOIc |
+
+### 🧭 Summary
+
+Wave 5 upgrades make Pacter a fully autonomous coordination system — where:
+- Every agreement can resolve disputes via verifiable arbitration.
+- Idle escrow capital works productively in insured DeFi vaults.
+- Continuous-service providers get paid in real time.
+- Every on-chain decision is inference-verified and audit-logged.
+
+This establishes Pacter as a trustless, yield-aware, arbitration-ready contract layer for real-world digital collaborations on the 0G Chain.
+
+
+
 
 ## 📦 0G WaveHack Wave 3 & 4 Updates
 
