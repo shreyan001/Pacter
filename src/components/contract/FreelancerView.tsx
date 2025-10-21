@@ -90,6 +90,28 @@ export default function FreelancerView({ contract, onContractUpdate }: Freelance
   
   // Get order hash
   const orderHash = contract?.escrow?.orderHash || contract?.escrow?.deposit?.orderHash
+
+  const isTimeLockedContract = contract?.timeLockedEscrow?.contractAddress
+  if (isTimeLockedContract) {
+    return (
+      <Card className="border-slate-700 bg-slate-800/50 font-mono">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white font-mono">
+            <Briefcase className="w-5 h-5" />
+            Freelancer Dashboard
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="font-mono space-y-3">
+          <Alert className="border-indigo-500/50 bg-indigo-500/10">
+            <AlertCircle className="h-4 w-4 text-indigo-400" />
+            <AlertDescription className="text-indigo-300">
+              This contract is configured as a time-locked inference agreement. Please use the provider dashboard to manage accrual claims.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    )
+  }
   
   // Determine current state
   const currentState = !deliverableSubmitted 

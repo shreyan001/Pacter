@@ -112,21 +112,21 @@ export const backendContractTemplate = {
         vaultOptIn: true
       },
       precompiledContract: {
-        key: "milestoneEscrow",
-        displayName: "Milestone Escrow (AI Agent Verified)",
+        key: "timeLockedEscrow",
+        displayName: "Time-Locked Inference Escrow",
         targetNetwork: "0g-testnet",
         deploymentStatus: "not_deployed",
         constructorParameters: {
           client: "0x1111111111111111111111111111111111111111",
-          freelancer: "0x2222222222222222222222222222222222222222",
+          provider: "0x2222222222222222222222222222222222222222",
           agent: "0x5555555555555555555555555555555555555555",
           arbitration: "0x4444444444444444444444444444444444444444",
-          vault: "0x3333333333333333333333333333333333333333",
-          storageFeeWei: "10000000000000000"
+          vault: "0xa570E01A19A4bE995f5A27498b22eC6CbC2F1283",
+          durationSeconds: 604800,
         },
         artifactStatus: {
-          abi: "pending",
-          bytecode: "pending"
+          abi: "available",
+          bytecode: "available"
         }
       },
       serviceMonitoring: {
@@ -154,45 +154,32 @@ export const backendContractTemplate = {
           timestamp: "2025-10-10T08:00:00.000Z"
         }
       },
-      milestones: [
-        {
-          id: "contract_sample_001_milestone_001",
-          number: 1,
-          description: "Provisioning and onboarding",
-          amounts: {
-            inr: "50000",
-            zeroG: "588"
-          },
-          dueDate: "2025-10-20",
-          status: "PENDING",
-          deliverable: {
-            type: "inference_setup",
-            required: ["Dedicated endpoint URL", "API access tokens", "Monitoring dashboard"],
-            submitted: false,
-            submittedAt: null,
-            submissionLinks: [],
-            storage: null
-          },
-          verification: {
-            agentVerified: false,
-            verifiedAt: null,
-            verificationNote: ""
-          },
-          review: {
-            clientReviewed: false,
-            reviewedAt: null,
-            approved: null,
-            feedback: "",
-            revisionRequested: false,
-            revisionCount: 0
-          },
-          payment: {
-            released: false,
-            releasedAt: null,
-            transactionHash: null
-          }
+      milestones: [],
+      timeLockedEscrow: {
+        contractAddress: null,
+        provider: {
+          name: "Nova GPU Services",
+          walletAddress: "0x2222222222222222222222222222222222222222",
+          apiEndpoint: "https://api.novagpu.ai/v1/inference"
+        },
+        agent: "0x5555555555555555555555555555555555555555",
+        client: "0x1111111111111111111111111111111111111111",
+        arbitrationContract: "0x4444444444444444444444444444444444444444",
+        vaultAddress: "0xa570E01A19A4bE995f5A27498b22eC6CbC2F1283",
+        tokens: {
+          fundedAmount: "2941",
+          fundedAt: null,
+          lastClaimedAt: null
+        },
+        service: {
+          duration: "90 days",
+          durationSeconds: 7776000,
+          startedAt: null,
+          paused: false,
+          pausedAt: null,
+          resumeAt: null
         }
-      ],
+      },
       currentMilestone: null,
       agentInfo: {
         iNFTContractAddress: "0x5555555555555555555555555555555555555555",

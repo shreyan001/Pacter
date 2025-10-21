@@ -21,6 +21,9 @@ import {
   MilestoneEscrowState,
 } from "./milestoneEscrowABI";
 
+export const DEFAULT_ARBITRATION_ADDRESS: Address = "0x259829717EbCe11350c37CB9B5d8f38Cb42E0988";
+export const DEFAULT_DEFI_VAULT_ADDRESS: Address = "0xa570E01A19A4bE995f5A27498b22eC6CbC2F1283";
+
 export interface MilestoneInfo {
   id: number;
   amount: bigint;
