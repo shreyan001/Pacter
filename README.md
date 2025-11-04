@@ -33,6 +33,7 @@ Below are the **production mainnet contract addresses** for Wave 5. These are th
 | PacterEscrowV2 | Core escrow logic for simple and templated escrows (foundation contract used by flows). | `0x1E7e5264B2a08B06aBF60c1A1A513e8c943ed592` |
 | MilestoneEscrow | Multi-milestone escrow with milestone-specific verification hooks & arbitration routing. | `0xAB889C9c7289E8a353Bd5fa5A49e88369301EC52` |
 | TimeboxInferenceEscrowV2 | Time-locked / usage-verified escrow for API/compute rentals with live monitoring. | `0x274daeB38923A7600dB8B90ED847961f2551893D` |
+Twitter Thread of Project: https://x.com/4Pacter77888/status/1985719006662467823
 
 > **Note:** Add these verified addresses (with transaction hashes) into the submission form and top-level README links. Also include Chainscan links to the verified source code where available.
 
