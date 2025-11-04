@@ -16,25 +16,25 @@ import {
   
   if (!projectId) throw new Error('Project ID is not defined');
 
-  // Define 0G Galileo Testnet custom chain
-  export const ogGalileoTestnet = defineChain({
-    id: 16602,
-    name: '0G-Testnet-Galileo',
+  // Define 0G Mainnet custom chain
+  export const ogMainnet = defineChain({
+    id: 16661,
+    name: '0G Mainnet',
     nativeCurrency: {
       decimals: 18,
       name: '0G Token',
-      symbol: 'OG',
+      symbol: '0G',
     },
     rpcUrls: {
-      default: { http: ['https://evmrpc-testnet.0g.ai'] },
+      default: { http: ['https://evmrpc.0g.ai'] },
     },
     blockExplorers: {
       default: { 
-        name: '0G BlockChain Explorer', 
-        url: 'https://chainscan-galileo.0g.ai' 
+        name: '0G Block Explorer', 
+        url: 'https://chainscan.0g.ai' 
       },
     },
-    testnet: true,
+    mainnet: false,
   });
   
   export const metadata = {
@@ -45,7 +45,7 @@ import {
   };
   
   export const publicClient = createPublicClient({
-    chain: ogGalileoTestnet,
+    chain: ogMainnet,
     transport: http()
   });
   
@@ -54,13 +54,13 @@ import {
     try {
       const currentChainId = getChainId(config);
       
-      if (currentChainId !== ogGalileoTestnet.id) {
-        // Prompt user to switch to 0G Galileo Testnet
+      if (currentChainId !== ogMainnet.id) {
+        // Prompt user to switch to 0G Mainnet
         const switchResult = await switchChain(config, {
-          chainId: ogGalileoTestnet.id,
+          chainId: ogMainnet.id,
         });
         
-        return switchResult.id === ogGalileoTestnet.id;
+        return switchResult.id === ogMainnet.id;
       }
       
       return true;
@@ -83,7 +83,7 @@ import {
   };
   
   // Create wagmiConfig
-  const chains = [ogGalileoTestnet] as const;
+  const chains = [ogMainnet] as const;
   export const config = defaultWagmiConfig({
     chains,
     projectId,
@@ -101,15 +101,15 @@ import {
       // First check current chain without switching
       const currentChainId = getChainId(config);
       
-      if (currentChainId !== ogGalileoTestnet.id) {
-        throw new Error(`Wrong network detected. Please switch to 0G Galileo Testnet (Chain ID: ${ogGalileoTestnet.id}) first, then try signing in again.`);
+      if (currentChainId !== ogMainnet.id) {
+        throw new Error(`Wrong network detected. Please switch to 0G Mainnet (Chain ID: ${ogMainnet.id}) first, then try signing in again.`);
       }
       
       return {
         domain: typeof window !== 'undefined' ? window.location.host : '',
         uri: typeof window !== 'undefined' ? window.location.origin : '',
-        chains: [ogGalileoTestnet.id],
-        statement: 'Please sign with your account on 0G Galileo Testnet',
+        chains: [ogMainnet.id],
+        statement: 'Please sign with your account on 0G Mainnet',
       };
     },
     createMessage: ({ address, ...args }: SIWECreateMessageArgs) =>
@@ -117,8 +117,8 @@ import {
     getNonce: async () => {
       // Strict chain validation before getting nonce
       const currentChainId = getChainId(config);
-      if (currentChainId !== ogGalileoTestnet.id) {
-        throw new Error(`Authentication blocked: Wrong network detected. Current: ${currentChainId}, Required: ${ogGalileoTestnet.id}. Please switch to 0G Galileo Testnet first.`);
+      if (currentChainId !== ogMainnet.id) {
+        throw new Error(`Authentication blocked: Wrong network detected. Current: ${currentChainId}, Required: ${ogMainnet.id}. Please switch to 0G Mainnet first.`);
       }
       
       const nonce = await getCsrfToken();
@@ -144,8 +144,8 @@ import {
       try {
         // Validate chain before verification
         const currentChainId = getChainId(config);
-        if (currentChainId !== ogGalileoTestnet.id) {
-          console.error(`Wrong chain for verification. Expected: ${ogGalileoTestnet.id}, Got: ${currentChainId}`);
+        if (currentChainId !== ogMainnet.id) {
+          console.error(`Wrong chain for verification. Expected: ${ogMainnet.id}, Got: ${currentChainId}`);
           return false;
         }
         

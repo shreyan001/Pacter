@@ -104,7 +104,7 @@ async function storeRepositoryMetadata(githubUrl: string, repoInfo: any) {
 async function callAgentVerification(orderHash: string) {
   try {
     const privateKey = process.env.AGENT_PRIVATE_KEY!
-    const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc-testnet.0g.ai'
+    const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc.0g.ai'
     const contractAddress = process.env.NEXT_PUBLIC_PACTER_CONTRACT_ADDRESS!
     
     const provider = new ethers.JsonRpcProvider(rpcUrl)

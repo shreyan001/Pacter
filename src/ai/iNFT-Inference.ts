@@ -13,7 +13,7 @@ const AGENT_NFT_ABI = [
     "function tokenURI(uint256 tokenId) external view returns (string memory)"
 ];
 
-// Deployed contract address on 0G testnet
+// Deployed contract address on 0G mainnet
 const AGENT_NFT_ADDRESS = "0x81674F2F71DC648E391Ff90A8e9556e41bbf42F7";
 
 export class INFTInference {
@@ -31,7 +31,7 @@ export class INFTInference {
 
     constructor(
         privateKey?: string,
-        indexerRpc: string = "https://indexer-storage-testnet-turbo.0g.ai"
+        indexerRpc: string = "https://indexer-storage-turbo.0g.ai"
     ) {
         // Use provided private key or get from environment
         const key = privateKey || process.env.ZG_AGENT_NFT_CREATOR_PRIVATE_KEY;
@@ -40,7 +40,7 @@ export class INFTInference {
         }
         
         // Setup provider and signer
-        const provider = new ethers.JsonRpcProvider(process.env.OG_RPC_URL || "https://evmrpc-testnet.0g.ai");
+        const provider = new ethers.JsonRpcProvider(process.env.OG_RPC_URL || "https://evmrpc.0g.ai");
         this.signer = new ethers.Wallet(key, provider);
         this.nftContract = new ethers.Contract(AGENT_NFT_ADDRESS, AGENT_NFT_ABI, this.signer);
         this.indexer = new Indexer(indexerRpc);

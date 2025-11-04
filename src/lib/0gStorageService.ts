@@ -2,6 +2,7 @@ import { ethers } from 'ethers';
 import { Indexer, ZgFile } from '@0glabs/0g-ts-sdk';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import archiver from 'archiver';
 
 export interface UploadResult {
@@ -42,12 +43,12 @@ export class ZeroGStorageService {
     }
     
     // Initialize wallet with provider
-    const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
+    const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc.0g.ai';
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     this.wallet = new ethers.Wallet(privateKey, provider);
     
-    // Initialize indexer with testnet URL
-    this.indexer = new Indexer('https://indexer-storage-testnet-turbo.0g.ai');
+    // Initialize indexer with mainnet URL
+    this.indexer = new Indexer('https://indexer-storage-turbo.0g.ai');
   }
 
   /**
@@ -75,7 +76,7 @@ export class ZeroGStorageService {
       console.log('📁 File loaded, starting upload...');
       
       // Upload file using the indexer
-      const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
+      const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc.0g.ai';
       //@ts-ignore
       const [result, err] = await this.indexer.upload(file, rpcUrl, this.wallet);
       
@@ -112,7 +113,7 @@ export class ZeroGStorageService {
       }
       
       // Create a temporary zip file
-      const tempZipPath = path.join(require('os').tmpdir(), `pacter-folder-${Date.now()}.zip`);
+      const tempZipPath = path.join(os.tmpdir(), `pacter-folder-${Date.now()}.zip`);
       
       // Create a write stream for the zip file
       const output = fs.createWriteStream(tempZipPath);
@@ -156,7 +157,7 @@ export class ZeroGStorageService {
       console.log('📤 Starting upload to 0G Storage...');
       
       // Upload file using the indexer
-      const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc-testnet.0g.ai';
+      const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc.0g.ai';
       //@ts-ignore
       const [result, err] = await this.indexer.upload(file, rpcUrl, this.wallet);
       console.log('0G Indexer upload attempt complete.'); // Added logging

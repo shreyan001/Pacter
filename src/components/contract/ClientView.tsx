@@ -194,7 +194,7 @@ function TimeLockedClientView({ contract, onContractUpdate }: TimeLockedProps) {
           <div className="flex justify-between">
             <span>Arbitration Contract</span>
             <a
-              href={`https://chainscan-galileo.0g.ai/address/${arbitrationAddress}`}
+              href={`https://chainscan.0g.ai/address/${arbitrationAddress}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-indigo-300 hover:text-indigo-200"
@@ -205,7 +205,7 @@ function TimeLockedClientView({ contract, onContractUpdate }: TimeLockedProps) {
           <div className="flex justify-between">
             <span>Vault Address</span>
             <a
-              href={`https://chainscan-galileo.0g.ai/address/${vaultAddress}`}
+              href={`https://chainscan.0g.ai/address/${vaultAddress}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-indigo-300 hover:text-indigo-200"
@@ -216,7 +216,7 @@ function TimeLockedClientView({ contract, onContractUpdate }: TimeLockedProps) {
           <div className="flex justify-between">
             <span>Escrow Contract</span>
             <a
-              href={`https://chainscan-galileo.0g.ai/address/${escrowAddress}`}
+              href={`https://chainscan.0g.ai/address/${escrowAddress}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-indigo-300 hover:text-indigo-200"

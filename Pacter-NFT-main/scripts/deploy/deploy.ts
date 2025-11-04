@@ -15,8 +15,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     // 2. Prepare initialization parameters
     const nftName =  "Pacter Agent";
     const nftSymbol = "PACT";
-    const chainURL = process.env.ZG_RPC_URL || "https://evmrpc-testnet.0g.ai";
-    const indexerURL = process.env.ZG_INDEXER_URL || "https://indexer-storage-testnet-turbo.0g.ai";
+    const chainURL = process.env.ZG_RPC_URL || "https://evmrpc.0g.ai";
+const indexerURL = process.env.ZG_INDEXER_URL || "https://indexer-storage-turbo.0g.ai";
 
     // 3. Prepare initialization data
     const IndiaFreelanceLegalNFTFactory = await hre.ethers.getContractFactory("IndiaFreelanceLegalNFT");

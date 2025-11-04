@@ -31,6 +31,35 @@ export interface GraphState {
     paymentAmount?: boolean;
     projectDescription?: boolean;
     deadline?: boolean;
+    walletAddress?: boolean;
+    contractValue?: boolean;
+    escrowType?: boolean;
+    freelancerAddress?: boolean;
+    milestones?: boolean;
+    vaultOptIn?: boolean;
+    arbitrationContract?: boolean;
+    serviceDuration?: boolean;
+    providerWallet?: boolean;
+    agentAddress?: boolean;
+  };
+  // Actual collected data
+  baseInfo?: {
+    projectName?: string;
+    projectDescription?: string;
+    clientName?: string;
+    email?: string;
+    walletAddress?: string;
+    paymentAmount?: number;
+    freelancerAddress?: string;
+    escrowType?: string;
+  };
+  typeSpecificInfo?: {
+    milestones?: any[];
+    serviceDuration?: string;
+    providerWallet?: string;
+    agentAddress?: string;
+    vaultOptIn?: boolean;
+    arbitrationContract?: string;
   };
   // 0G Compute Integration
   inferenceReady?: boolean;
@@ -71,6 +100,8 @@ export interface StageNodeProps {
   index: number;
   isLast?: boolean;
   description?: string;
+  graphState?: GraphState;
+  isCurrentStage?: boolean;
 }
 
 // Chat component props

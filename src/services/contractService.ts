@@ -161,7 +161,7 @@ function prepareBackendData(
         '0G': {
           totalAmount: collectedData.financialInfo.zeroGEquivalent.toString(),
           currency: '0G',
-          network: '0g-testnet'
+          network: '0g-mainnet'
         }
       },
       contractAddress: '0x0000000000000000000000000000000000000000',

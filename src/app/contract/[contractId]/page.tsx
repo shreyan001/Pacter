@@ -42,6 +42,10 @@ export default function ContractPage() {
       }
 
       const data = await response.json()
+      console.log('Contract page - API response data:', data)
+      console.log('Contract page - Contract name:', data.name)
+      console.log('Contract page - Contract parties:', data.parties)
+      console.log('Contract page - Contract signatures:', data.signatures)
       setContract(data)
       
       // Set current stage based on contract status
@@ -154,7 +158,7 @@ export default function ContractPage() {
       <div className="px-8 py-3 bg-slate-900/60 border-t border-slate-700/50 backdrop-blur-sm">
         <div className="flex justify-between items-center text-xs text-slate-400 font-mono max-w-7xl mx-auto">
           <span>Contract: {contract.name}</span>
-          <span>Status: {contract.currentStage}</span>
+          <span>Status: {contract.status || contract.currentStage || 'Unknown'}</span>
           <span>Pacter v1.0 | Contract Execution</span>
         </div>
       </div>

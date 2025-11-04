@@ -5,7 +5,7 @@ import "hardhat-deploy";
 import "hardhat-deploy-ethers";
 dotenv.config();
 
-const ZG_TESTNET_PRIVATE_KEY = process.env.ZG_TESTNET_PRIVATE_KEY;
+const ZG_mainnet_PRIVATE_KEY = process.env.ZG_mainnet_PRIVATE_KEY;
 const ZG_AGENT_NFT_CREATOR_PRIVATE_KEY = process.env.ZG_AGENT_NFT_CREATOR_PRIVATE_KEY;
 const ZG_AGENT_NFT_ALICE_PRIVATE_KEY = process.env.ZG_AGENT_NFT_ALICE_PRIVATE_KEY;
 const ZG_AGENT_NFT_BOB_PRIVATE_KEY = process.env.ZG_AGENT_NFT_BOB_PRIVATE_KEY;
@@ -47,10 +47,10 @@ const config: HardhatUserConfig = {
         }
       ],
     },
-    zgTestnet: {
-      url: "https://evmrpc-testnet.0g.ai",
-      accounts: [ZG_TESTNET_PRIVATE_KEY || "0x1000000000000000000000000000000000000000000000000000000000000001"],
-      chainId: 16602,
+    zgmainnet: {
+      url: "https://evmrpc.0g.ai",
+      accounts: [ZG_mainnet_PRIVATE_KEY || "0x1000000000000000000000000000000000000000000000000000000000000001"],
+      chainId: 16661,
       live: true,
       saveDeployments: true,
       tags: ["staging"]
@@ -64,12 +64,12 @@ const config: HardhatUserConfig = {
     deployer: {
       default: 0,
       hardhat: 0,
-      zgTestnet: 0,
+      zgmainnet: 0,
     },
     creator: {
       default: 0,
       hardhat: 0,
-      zgTestnet: 0,
+      zgmainnet: 0,
     },
     alice: {
       default: 1,
@@ -88,7 +88,7 @@ const config: HardhatUserConfig = {
     ],
     deployments: {
       hardhat: ["deployments/hardhat"],
-      zgTestnet: ["deployments/zgTestnet"],
+      zgmainnet: ["deployments/zgmainnet"],
     },
   },
   typechain: {

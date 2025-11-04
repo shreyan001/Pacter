@@ -24,7 +24,7 @@ try {
   
   const teeVerifierDeployment = JSON.parse(
     fs.readFileSync(
-      path.join(__dirname, "../../deployments/zgTestnet/TEEVerifier.json"),
+      path.join(__dirname, "../../deployments/zgmainnet/TEEVerifier.json"),
       "utf8"
     )
   );
@@ -58,7 +58,7 @@ async function main() {
     console.log("📄 Loading contract deployment info...");
     const IndiaFreelanceLegalNFTDeployment = JSON.parse(
       fs.readFileSync(
-        path.join(__dirname, "../../deployments/zgTestnet/IndiaFreelanceLegalNFT.json"),
+        path.join(__dirname, "../../deployments/zgmainnet/IndiaFreelanceLegalNFT.json"),
         "utf8"
       )
     );
@@ -76,7 +76,7 @@ async function main() {
     console.log("🔐 Loading TEEVerifier deployment info...");
     const teeVerifierDeployment = JSON.parse(
       fs.readFileSync(
-        path.join(__dirname, "../../deployments/zgTestnet/TEEVerifier.json"),
+        path.join(__dirname, "../../deployments/zgmainnet/TEEVerifier.json"),
         "utf8"
       )
     );

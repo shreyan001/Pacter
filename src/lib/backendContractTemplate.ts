@@ -65,7 +65,7 @@ export const backendContractTemplate = {
           "0G": {
             totalAmount: "2941",
             currency: "0G",
-            network: "0g-testnet"
+            network: "0g-mainnet"
           }
         },
         contractAddress: "0x3333333333333333333333333333333333333333",
@@ -114,7 +114,7 @@ export const backendContractTemplate = {
       precompiledContract: {
         key: "timeLockedEscrow",
         displayName: "Time-Locked Inference Escrow",
-        targetNetwork: "0g-testnet",
+        targetNetwork: "0g-mainnet",
         deploymentStatus: "not_deployed",
         constructorParameters: {
           client: "0x1111111111111111111111111111111111111111",

@@ -26,11 +26,11 @@ export interface NetworkConfig {
  * 0G Network configurations
  */
 export const NETWORKS: Record<string, NetworkConfig> = {
-  testnet: {
-    chainId: 16600,
-    name: '0G Newton Testnet',
-    rpcUrl: process.env.NEXT_PUBLIC_ZEROG_RPC_URL || 'https://evmrpc-testnet.0g.ai',
-    blockExplorer: 'https://chainscan-galileo.0g.ai',
+  mainnet: {
+    chainId: 16661,
+    name: '0G Mainnet',
+    rpcUrl: process.env.NEXT_PUBLIC_ZEROG_RPC_URL || 'https://evmrpc.0g.ai',
+    blockExplorer: 'https://chainscan.0g.ai',
     nativeCurrency: {
       name: '0G',
       symbol: '0G',
@@ -38,10 +38,10 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     },
   },
   mainnet: {
-    chainId: 16600, // Update when mainnet is live
+    chainId: 16661,
     name: '0G Mainnet',
     rpcUrl: process.env.NEXT_PUBLIC_ZEROG_RPC_URL || 'https://evmrpc.0g.ai',
-    blockExplorer: 'https://chainscan-galileo.0g.ai',
+    blockExplorer: 'https://chainscan.0g.ai',
     nativeCurrency: {
       name: '0G',
       symbol: '0G',
@@ -54,15 +54,15 @@ export const NETWORKS: Record<string, NetworkConfig> = {
  * Get current network based on environment
  */
 export function getCurrentNetwork(): NetworkConfig {
-  const env = process.env.NEXT_PUBLIC_NETWORK_ENV || 'testnet';
-  return NETWORKS[env] || NETWORKS.testnet;
+  const env = process.env.NEXT_PUBLIC_NETWORK_ENV || 'mainnet';
+  return NETWORKS[env] || NETWORKS.mainnet;
 }
 
 /**
  * Contract addresses by network
  */
 export const CONTRACT_ADDRESSES: Record<string, Address> = {
-  testnet: (process.env.NEXT_PUBLIC_PACTER_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000') as Address,
+  mainnet: (process.env.NEXT_PUBLIC_PACTER_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000') as Address,
   mainnet: (process.env.NEXT_PUBLIC_PACTER_CONTRACT_ADDRESS_MAINNET || '0x0000000000000000000000000000000000000000') as Address,
 };
 
@@ -82,8 +82,8 @@ export function getDeFiVaultAddress(): Address {
  * Get contract address for current network
  */
 export function getContractAddress(): Address {
-  const env = process.env.NEXT_PUBLIC_NETWORK_ENV || 'testnet';
-  return CONTRACT_ADDRESSES[env] || CONTRACT_ADDRESSES.testnet;
+  const env = process.env.NEXT_PUBLIC_NETWORK_ENV || 'mainnet';
+  return CONTRACT_ADDRESSES[env] || CONTRACT_ADDRESSES.mainnet;
 }
 
 /**

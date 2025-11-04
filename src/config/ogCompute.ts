@@ -23,7 +23,7 @@ export const ogComputeConfig: OGComputeConfig = {
   privateKey: process.env.OG_COMPUTE_PRIVATE_KEY || process.env.AGENT_PRIVATE_KEY || '',
   
   // RPC URL for 0G Network
-  rpcUrl: process.env.NEXT_PUBLIC_ZEROG_RPC_URL || 'https://evmrpc-testnet.0g.ai',
+  rpcUrl: process.env.NEXT_PUBLIC_ZEROG_RPC_URL || 'https://evmrpc.0g.ai',
   
   // Verification mode: TEE (Trusted Execution Environment) or ZKP (Zero-Knowledge Proof)
   verificationMode: (process.env.OG_COMPUTE_VERIFICATION_MODE || 'TEE') as 'TEE' | 'ZKP',

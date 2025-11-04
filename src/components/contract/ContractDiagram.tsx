@@ -74,27 +74,27 @@ export default function ContractDiagram({ contract, currentStage }: ContractDiag
         <div className="space-y-2 text-xs font-mono">
           <div className="flex justify-between text-gray-400">
             <span>Status:</span>
-            <span className="text-[#4299e1]">{contract.currentStage || stages[currentStage]}</span>
+            <span className="text-[#4299e1]">{contract.status || contract.currentStage || stages[currentStage]}</span>
           </div>
           <div className="flex justify-between text-gray-400">
             <span>Signatures:</span>
-            <span className={contract.signatures?.bothSigned ? 'text-green-400' : 'text-amber-400'}>
-              {contract.signatures?.bothSigned ? 'Complete ✓' : 'Pending'}
+            <span className={contract?.signatures?.bothSigned ? 'text-green-400' : 'text-amber-400'}>
+              {contract?.signatures?.bothSigned ? 'Complete ✓' : 'Pending'}
             </span>
           </div>
-          {contract.escrow?.deposit?.deposited && (
+          {contract?.escrow?.deposit?.deposited && (
             <div className="flex justify-between text-gray-400">
               <span>Escrow:</span>
               <span className="text-green-400">Deposited ✓</span>
             </div>
           )}
-          {contract.milestones?.[0]?.deliverable?.submitted && (
+          {contract?.milestones?.[0]?.deliverable?.submitted && (
             <div className="flex justify-between text-gray-400">
               <span>Deliverable:</span>
               <span className="text-green-400">Submitted ✓</span>
             </div>
           )}
-          {contract.milestones?.[0]?.verification?.agentVerified && (
+          {contract?.milestones?.[0]?.verification?.agentVerified && (
             <div className="flex justify-between text-gray-400">
               <span>Verification:</span>
               <span className="text-green-400">Verified ✓</span>

@@ -208,7 +208,7 @@ export default function FreelancerView({ contract, onContractUpdate }: Freelance
       }
 
       const storageExplorerUrl = storageResult.storageTxHash
-        ? `https://chainscan-galileo.0g.ai/tx/${storageResult.storageTxHash}`
+        ? `https://chainscan.0g.ai/tx/${storageResult.storageTxHash}`
         : undefined
 
       updateVerificationStep(
@@ -246,7 +246,7 @@ export default function FreelancerView({ contract, onContractUpdate }: Freelance
 
       // Build proper explorer URL
       const explorerUrl = agentResult.transactionHash && agentResult.transactionHash !== 'Already verified'
-        ? `https://chainscan-galileo.0g.ai/tx/${agentResult.transactionHash}`
+        ? `https://chainscan.0g.ai/tx/${agentResult.transactionHash}`
         : undefined
       
       updateVerificationStep(

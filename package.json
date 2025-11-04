@@ -9,7 +9,10 @@
     "start": "next start",
     "lint": "next lint",
     "test:0g-storage": "node scripts/test-0g-storage.js",
-    "test:0g-inference": "node scripts/test-0g-inference.mjs"
+    "test:0g-inference": "node scripts/test-0g-inference.mjs",
+    "test:create-contracts": "node scripts/create-test-contracts.mjs",
+    "fix:contracts:signatures": "node scripts/fix-contract-signatures.mjs",
+    "fix:contracts:amounts": "node scripts/fix-contract-amounts.mjs"
   },
   "dependencies": {
     "@0glabs/0g-serving-broker": "^0.4.4",

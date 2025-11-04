@@ -75,7 +75,7 @@ This document outlines the complete JSON structure for contract data in the Pact
       "0G": {
         "totalAmount": "1000",
         "currency": "0G",
-        "network": "0g-testnet"
+        "network": "0g-mainnet"
       }
     },
     "contractAddress": "0x68dde7a0192c9c5c1e0a71cc556579a67458df0d",

@@ -2,7 +2,6 @@ import { Octokit } from "@octokit/rest";
 import axios from 'axios';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN as string;
-const PROBLEMATIC_DEPLOYMENT_URL = 'https://satcontracts.vercel.app';
 
 if (!GITHUB_TOKEN) {
   throw new Error('GITHUB_TOKEN environment variable is required');
@@ -115,16 +114,9 @@ export async function verifyRepoDeployment({
     const deployedFileUrl = `${deployedUrl.replace(/\/$/, '')}/${fileToCheck}`;
     console.log(`Fetching from: ${deployedFileUrl}`);
 
-    let deployedFileContent: string;
-    try {
-      // Try to fetch the same file from the deployed URL
-      deployedFileContent = await fetchDeployedFile(deployedFileUrl);
-      console.log(`Deployed file content length: ${deployedFileContent.length}`);
-    } catch (deployedError) {
-      console.warn(`⚠️ Failed to fetch deployed file from ${deployedFileUrl}, falling back to GitHub: ${deployedError}`);
-      // If fetching from deployed URL fails, use the content from GitHub for comparison
-      deployedFileContent = repoFileContent;
-    }
+    // Fetch the same file from the deployed URL
+    const deployedFileContent = await fetchDeployedFile(deployedFileUrl);
+    console.log(`Deployed file content length: ${deployedFileContent.length}`);
 
     // Normalize content for comparison (trim whitespace)
     const normalizedRepoContent = repoFileContent.trim();
@@ -203,32 +195,30 @@ export async function getRepoInfo(owner: string, repo: string, branch: string = 
     const commitSha = await getRepoCommit(owner, repo, branch);
     
     const deploymentUrls: string[] = [];
-    let vercelUrlCandidate: string | undefined;
-    let netlifyUrlCandidate: string | undefined;
-    let githubPagesCandidate: string | undefined;
+    let vercelUrl: string | undefined;
+    let netlifyUrl: string | undefined;
+    let githubPages: string | undefined;
     
     // Check homepage URL
-    if (repoData.homepage && repoData.homepage !== PROBLEMATIC_DEPLOYMENT_URL) {
+    if (repoData.homepage) {
       deploymentUrls.push(repoData.homepage);
       
       // Detect deployment platform
       if (repoData.homepage.includes('vercel.app')) {
-        vercelUrlCandidate = repoData.homepage;
+        vercelUrl = repoData.homepage;
       } else if (repoData.homepage.includes('netlify.app')) {
-        netlifyUrlCandidate = repoData.homepage;
+        netlifyUrl = repoData.homepage;
       } else if (repoData.homepage.includes('github.io')) {
-        githubPagesCandidate = repoData.homepage;
+        githubPages = repoData.homepage;
       }
     }
     
     // Check for GitHub Pages
     if (repoData.has_pages) {
       const pagesUrl = `https://${owner}.github.io/${repo}`;
-      if (pagesUrl !== PROBLEMATIC_DEPLOYMENT_URL) {
-        if (!deploymentUrls.includes(pagesUrl)) {
-          deploymentUrls.push(pagesUrl);
-        }
-        githubPagesCandidate = pagesUrl;
+      if (!deploymentUrls.includes(pagesUrl)) {
+        deploymentUrls.push(pagesUrl);
+        githubPages = pagesUrl;
       }
     }
     
@@ -238,7 +228,7 @@ export async function getRepoInfo(owner: string, repo: string, branch: string = 
       const packageData = JSON.parse(packageJson);
       
       // Check for homepage in package.json
-      if (packageData.homepage && packageData.homepage !== PROBLEMATIC_DEPLOYMENT_URL && !deploymentUrls.includes(packageData.homepage)) {
+      if (packageData.homepage && !deploymentUrls.includes(packageData.homepage)) {
         deploymentUrls.push(packageData.homepage);
       }
     } catch (error) {
@@ -264,15 +254,15 @@ export async function getRepoInfo(owner: string, repo: string, branch: string = 
             const matches = readme.match(pattern);
             if (matches) {
               matches.forEach(url => {
-                if (url !== PROBLEMATIC_DEPLOYMENT_URL && !deploymentUrls.includes(url)) {
+                if (!deploymentUrls.includes(url)) {
                   deploymentUrls.push(url);
                   
-                  if (url.includes('vercel.app') && !vercelUrlCandidate) {
-                    vercelUrlCandidate = url;
-                  } else if (url.includes('netlify.app') && !netlifyUrlCandidate) {
-                    netlifyUrlCandidate = url;
-                  } else if (url.includes('github.io') && !githubPagesCandidate) {
-                    githubPagesCandidate = url;
+                  if (url.includes('vercel.app') && !vercelUrl) {
+                    vercelUrl = url;
+                  } else if (url.includes('netlify.app') && !netlifyUrl) {
+                    netlifyUrl = url;
+                  } else if (url.includes('github.io') && !githubPages) {
+                    githubPages = url;
                   }
                 }
               });
@@ -288,18 +278,15 @@ export async function getRepoInfo(owner: string, repo: string, branch: string = 
       // No README found, that's okay
     }
     
-    // Filter out the problematic URL from the final lists
-    const filteredDeploymentUrls = Array.from(new Set(deploymentUrls)).filter(url => url !== PROBLEMATIC_DEPLOYMENT_URL);
-
     return {
       owner,
       repo,
       description: repoData.description || '',
       homepage: repoData.homepage,
-      deploymentUrls: filteredDeploymentUrls,
-      vercelUrl: vercelUrlCandidate === PROBLEMATIC_DEPLOYMENT_URL ? undefined : vercelUrlCandidate,
-      netlifyUrl: netlifyUrlCandidate === PROBLEMATIC_DEPLOYMENT_URL ? undefined : netlifyUrlCandidate,
-      githubPages: githubPagesCandidate === PROBLEMATIC_DEPLOYMENT_URL ? undefined : githubPagesCandidate,
+      deploymentUrls,
+      vercelUrl,
+      netlifyUrl,
+      githubPages,
       lastCommit: commitSha,
       branch
     };

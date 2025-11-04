@@ -11,7 +11,7 @@ async function agentSignVerification(orderHash: string, verificationDetails: str
       throw new Error('AI_KEY or AGENT_PRIVATE_KEY not configured')
     }
     
-    const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc-testnet.0g.ai'
+    const rpcUrl = process.env.ZEROG_RPC_URL || 'https://evmrpc.0g.ai'
     const contractAddress = process.env.NEXT_PUBLIC_PACTER_CONTRACT_ADDRESS
     
     if (!contractAddress) {

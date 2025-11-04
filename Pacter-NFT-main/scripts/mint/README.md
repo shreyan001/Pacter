@@ -13,10 +13,10 @@ This script allows you to mint an IndiaFreelanceLegalNFT token on the 0G network
 The script uses the existing `.env` file in the project root directory, which should contain:
 
 ```
-OG_RPC_URL='https://evmrpc-testnet.0g.ai'
-OG_STORAGE_URL='https://storage-testnet.0g.ai'
-OG_COMPUTE_URL='https://compute-testnet.0g.ai' 
-ZG_TESTNET_PRIVATE_KEY=your_private_key_here
+OG_RPC_URL='https://evmrpc-mainnet.0g.ai'
+OG_STORAGE_URL='https://storage-mainnet.0g.ai'
+OG_COMPUTE_URL='https://compute-mainnet.0g.ai' 
+ZG_mainnet_PRIVATE_KEY=your_private_key_here
 ZG_AGENT_NFT_CREATOR_PRIVATE_KEY=your_creator_private_key_here
 ```
 
@@ -35,7 +35,7 @@ RECIPIENT_ADDRESS=optional_recipient_address
 
 2. Run the script:
    ```
-   yarn hardhat run scripts/mint/mint.ts --network zgTestnet
+   yarn hardhat run scripts/mint/mint.ts --network zgmainnet
    ```
 
 ## Script Overview
@@ -62,4 +62,4 @@ The script performs the following steps:
 
 - Token details are saved locally for reference, including the token ID, owner, contract address, and metadata.
 
-- The script uses the contract addresses from the deployment files in `deployments/zgTestnet/` directory.
+- The script uses the contract addresses from the deployment files in `deployments/zgmainnet/` directory.

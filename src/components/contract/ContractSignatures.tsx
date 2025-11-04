@@ -21,21 +21,22 @@ export default function ContractSignatures({ contract, onSignaturesComplete }: C
     email: ''
   })
 
-  const isClient = address?.toLowerCase() === contract.parties.client.walletAddress.toLowerCase()
+  // Safely access contract data with null checks
+  const isClient = address?.toLowerCase() === contract.parties?.client?.walletAddress?.toLowerCase()
 
   // Freelancer can be identified by wallet OR if no freelancer is set yet and user is not the client
-  const freelancerWalletSet = contract.parties.freelancer.walletAddress &&
+  const freelancerWalletSet = contract.parties?.freelancer?.walletAddress &&
     contract.parties.freelancer.walletAddress !== '0x0000000000000000000000000000000000000000'
 
   const isFreelancer = freelancerWalletSet
-    ? address?.toLowerCase() === contract.parties.freelancer.walletAddress?.toLowerCase()
+    ? address?.toLowerCase() === contract.parties?.freelancer?.walletAddress?.toLowerCase()
     : !isClient && isConnected // If no freelancer set and not client, assume this is the freelancer
 
-  const clientSigned = contract.signatures.client.signed
-  const freelancerSigned = contract.signatures.freelancer.signed
-  const bothSigned = contract.signatures.bothSigned
+  const clientSigned = contract.signatures?.client?.signed || false
+  const freelancerSigned = contract.signatures?.freelancer?.signed || false
+  const bothSigned = contract.signatures?.bothSigned || false
 
-  const needsFreelancerInfo = isFreelancer && (!contract.parties.freelancer.name || contract.parties.freelancer.name === 'To Be Determined')
+  const needsFreelancerInfo = isFreelancer && (!contract.parties?.freelancer?.name || contract.parties?.freelancer?.name === 'To Be Determined')
 
   // Debug logging
   console.log('ContractSignatures Debug:', {
@@ -45,8 +46,10 @@ export default function ContractSignatures({ contract, onSignaturesComplete }: C
     isFreelancer,
     freelancerWalletSet,
     needsFreelancerInfo,
-    freelancerName: contract.parties.freelancer.name,
-    freelancerWallet: contract.parties.freelancer.walletAddress
+    freelancerName: contract.parties?.freelancer?.name,
+    freelancerWallet: contract.parties?.freelancer?.walletAddress,
+    hasContractHash: !!contract.contractHash,
+    hasEscrowAddress: !!contract.escrow?.contractAddress
   })
 
   const handleSign = () => {
@@ -55,9 +58,25 @@ export default function ContractSignatures({ contract, onSignaturesComplete }: C
       return
     }
 
-    setIsSubmitting(true)
+    // Validate required contract data
+    if (!contract.id) {
+      alert('Contract ID is missing')
+      return
+    }
 
-    console.log('Starting signature process...', { address, chain: chain?.id })
+    // Generate contract hash if not present
+    const contractHash = contract.contractHash || `0x${'0'.repeat(64)}` as `0x${string}`
+    const verifyingContract = contract.escrow?.contractAddress || '0x0000000000000000000000000000000000000000' as `0x${string}`
+
+    console.log('Starting signature process...', { 
+      address, 
+      chain: chain?.id,
+      contractId: contract.id,
+      contractHash,
+      verifyingContract
+    })
+
+    setIsSubmitting(true)
 
     // EIP-712 typed data for signature
     signTypedData(
@@ -66,8 +85,8 @@ export default function ContractSignatures({ contract, onSignaturesComplete }: C
         domain: {
           name: 'Pacter',
           version: '1',
-          chainId: chain?.id || 16602,
-          verifyingContract: (contract.escrow.contractAddress || '0x0000000000000000000000000000000000000000') as `0x${string}`
+          chainId: chain?.id || 16661,
+          verifyingContract: verifyingContract
         },
         types: {
           Contract: [
@@ -81,7 +100,7 @@ export default function ContractSignatures({ contract, onSignaturesComplete }: C
         primaryType: 'Contract',
         message: {
           contractId: contract.id,
-          contractHash: contract.contractHash as `0x${string}`,
+          contractHash: contractHash,
           signer: address,
           role: isClient ? 'CLIENT' : 'FREELANCER',
           timestamp: BigInt(Math.floor(Date.now() / 1000))
@@ -172,7 +191,7 @@ export default function ContractSignatures({ contract, onSignaturesComplete }: C
           )}
           <div className="min-w-0 flex-1">
             <p className="font-medium text-slate-200 text-xs">Client</p>
-            <p className="text-[10px] text-slate-400 truncate">{contract.parties.client.name}</p>
+            <p className="text-[10px] text-slate-400 truncate">{contract.parties?.client?.name || 'Unknown'}</p>
             <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] ${clientSigned
                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                 : 'bg-slate-600/30 text-slate-400 border border-slate-600/30'

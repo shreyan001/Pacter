@@ -22,9 +22,18 @@ export default function ContractChat({
   const contractScrollRef = useRef<HTMLDivElement>(null)
   const [showFullContract, setShowFullContract] = useState(false)
 
-  const isClient = address?.toLowerCase() === contract.parties.client.walletAddress.toLowerCase()
-  const isFreelancer = address?.toLowerCase() === contract.parties.freelancer.walletAddress?.toLowerCase()
-  const bothSigned = contract.signatures.bothSigned
+  // Debug logging
+  console.log('ContractChat - Contract data:', contract)
+  console.log('ContractChat - Parties:', contract.parties)
+  console.log('ContractChat - Client address:', address)
+  
+  // Safely handle parties structure
+  const clientAddress = contract.parties?.client?.walletAddress || contract.parties?.client || ''
+  const freelancerAddress = contract.parties?.freelancer?.walletAddress || contract.parties?.freelancer || ''
+  
+  const isClient = address?.toLowerCase() === clientAddress.toLowerCase()
+  const isFreelancer = address?.toLowerCase() === freelancerAddress.toLowerCase()
+  const bothSigned = contract.signatures?.bothSigned || false
 
   const getCurrentPrompt = () => {
     if (!bothSigned) {
@@ -42,7 +51,7 @@ export default function ContractChat({
       'Contract Closed': 'Contract completed successfully'
     }
 
-    return prompts[contract.currentStage] || 'Contract in progress'
+    return prompts[contract.currentStage] || prompts[contract.status] || 'Contract in progress'
   }
 
   return (
@@ -59,7 +68,7 @@ export default function ContractChat({
                 {contract.name}
               </h3>
               <span className="text-emerald-400 text-xs font-mono">
-                {contract.currentStage}
+                {contract.status || contract.currentStage || 'Unknown'}
               </span>
             </div>
             <p className="text-slate-300 text-xs font-mono mb-2">

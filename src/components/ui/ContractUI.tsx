@@ -65,7 +65,7 @@ export function SmartContractDisplay({ contractCode }: { contractCode: string })
         contractType: getContractType(closestContract.name),
         partyA: walletAddress,
         transactionHash: deploymentData.transactionHash,
-        networkId: '0G-testnet',
+        networkId: '0G-mainnet',
         description: getContractDescription(closestContract.name)
       }
       

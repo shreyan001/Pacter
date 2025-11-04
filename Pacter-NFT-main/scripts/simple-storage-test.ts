@@ -13,12 +13,12 @@ async function main() {
   console.log('==================================\n');
 
   // Configuration
-  const RPC_URL = process.env.OG_RPC_URL || "https://evmrpc-testnet.0g.ai";
-  const INDEXER_RPC = "https://indexer-storage-testnet-turbo.0g.ai"; // Use the correct indexer URL
-  const PRIVATE_KEY = process.env.PRIVATE_KEY || process.env.ZG_TESTNET_PRIVATE_KEY;
+  const RPC_URL = process.env.OG_RPC_URL || "https://evmrpc.0g.ai";
+const INDEXER_RPC = "https://indexer-storage-turbo.0g.ai"; // Use the correct indexer URL
+  const PRIVATE_KEY = process.env.PRIVATE_KEY || process.env.ZG_mainnet_PRIVATE_KEY;
 
   if (!PRIVATE_KEY) {
-    throw new Error('PRIVATE_KEY or ZG_TESTNET_PRIVATE_KEY environment variable is required');
+    throw new Error('PRIVATE_KEY or ZG_mainnet_PRIVATE_KEY environment variable is required');
   }
 
   // Setup provider and wallet

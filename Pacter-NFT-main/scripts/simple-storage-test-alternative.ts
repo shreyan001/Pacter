@@ -14,12 +14,12 @@ async function main() {
   console.log('================================================\n');
 
   // Configuration - using different endpoints
-  const RPC_URL = "https://evmrpc-testnet.0g.ai";
-  const INDEXER_RPC = "https://indexer-storage-testnet-standard.0g.ai"; // Try standard endpoint
-  const PRIVATE_KEY = process.env.PRIVATE_KEY || process.env.ZG_TESTNET_PRIVATE_KEY;
+  const RPC_URL = "https://evmrpc.0g.ai";
+const INDEXER_RPC = "https://indexer-storage-standard.0g.ai"; // Try standard endpoint
+  const PRIVATE_KEY = process.env.PRIVATE_KEY || process.env.ZG_mainnet_PRIVATE_KEY;
 
   if (!PRIVATE_KEY) {
-    throw new Error('PRIVATE_KEY or ZG_TESTNET_PRIVATE_KEY environment variable is required');
+    throw new Error('PRIVATE_KEY or ZG_mainnet_PRIVATE_KEY environment variable is required');
   }
 
   // Setup provider and wallet
@@ -36,8 +36,8 @@ async function main() {
     console.log(`💰 Wallet Balance: ${ethers.formatEther(balance)} ETH`);
     
     if (balance === 0n) {
-      console.log('⚠️  Warning: Wallet has no balance. You may need testnet funds.');
-      console.log('💡 Get testnet funds from: https://faucet.0g.ai/');
+      console.log('⚠️  Warning: Wallet has no balance. You may need mainnet funds.');
+      console.log('💡 Get mainnet funds from: https://faucet.0g.ai/');
     }
   } catch (error: any) {
     console.log('⚠️  Could not check wallet balance:', error.message);
@@ -146,7 +146,7 @@ async function main() {
         console.log('💡 You can try to download later using this root hash');
       } else if (uploadError.message.includes('insufficient funds')) {
         console.log('💡 Make sure your wallet has sufficient funds for gas fees');
-        console.log('💡 Get testnet funds from: https://faucet.0g.ai/');
+        console.log('💡 Get mainnet funds from: https://faucet.0g.ai/');
       } else {
         console.log('💡 This might be a network connectivity issue or the storage network might be busy');
       }
@@ -165,7 +165,7 @@ async function main() {
     // Provide helpful error messages
     if (error.message.includes('insufficient funds')) {
       console.log('\n💡 Tip: Make sure your wallet has sufficient funds for gas fees');
-      console.log('💡 Get testnet funds from: https://faucet.0g.ai/');
+      console.log('💡 Get mainnet funds from: https://faucet.0g.ai/');
     } else if (error.message.includes('network') || error.message.includes('timeout')) {
       console.log('\n💡 Tip: Check your network connection and try again');
       console.log('💡 The 0G storage network might be experiencing high load');

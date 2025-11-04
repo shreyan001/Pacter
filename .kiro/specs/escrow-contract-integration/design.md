@@ -633,7 +633,7 @@ export const mockVerificationSuccess = {
 ### 1. Private Key Management
 - Agent private key stored in environment variables only
 - Never logged or exposed in responses
-- Separate keys for testnet and mainnet
+- Separate keys for mainnet and mainnet
 - Key rotation procedures documented
 
 ### 2. Transaction Validation
@@ -714,7 +714,7 @@ GITHUB_API_TOKEN=ghp_...
 ### Deployment Steps
 
 1. **Deploy Smart Contract** (if not deployed)
-   - Deploy PacterEscrowV2 to 0G testnet
+   - Deploy PacterEscrowV2 to 0G mainnet
    - Verify contract on block explorer
    - Update contract address in config
 
@@ -734,7 +734,7 @@ GITHUB_API_TOKEN=ghp_...
    - Deploy to Vercel/hosting platform
 
 5. **Testing**
-   - Run end-to-end tests on testnet
+   - Run end-to-end tests on mainnet
    - Verify all flows work correctly
    - Monitor for errors
 

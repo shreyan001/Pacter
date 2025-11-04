@@ -11,33 +11,62 @@ const model = new ChatGroq({
     apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
 });
 
-// **Zod Schema for Information Extraction**
+// **Base Schema - Required for ALL escrow types**
+const BaseInfoSchema = z.object({
+    projectName: z.string().nullable().describe("Name of the project/website"),
+    projectDescription: z.string().nullable().describe("Description of what needs to be built"),
+    clientName: z.string().nullable().describe("Name of the client/company"),
+    email: z.string().nullable().describe("Client email address"),
+    walletAddress: z.string().nullable().describe("0G wallet address"),
+    paymentAmount: z.number().nullable().describe("Payment amount in INR"),
+    freelancerAddress: z.string().nullable().describe("Freelancer's 0G wallet address"),
+    escrowType: z.enum(["simple", "milestone", "time_locked"]).nullable().describe("Type of escrow contract to use")
+});
+
+// **Simple Escrow Schema - PacterEscrowV2.sol (no additional fields needed)**
+const SimpleEscrowSchema = z.object({
+    // No additional fields - just uses base info
+});
+
+// **Milestone Escrow Schema - MilestoneEscrow.sol**
+const MilestoneEscrowSchema = z.object({
+    milestones: z.array(z.object({ 
+        description: z.string().optional().describe("Milestone description"), 
+        amount: z.number().positive().optional().describe("Optional milestone amount in INR") 
+    })).nullable().describe("List of project milestones with descriptions and optional amounts"),
+    vaultOptIn: z.boolean().nullable().describe("Whether to use DeFi vault with 1% bonus yield"),
+    arbitrationContract: z.string().nullable().describe("Arbitration contract address for dispute resolution")
+});
+
+// **Time-Locked Escrow Schema - TimeLockedEscrow.sol**  
+const TimeLockedEscrowSchema = z.object({
+    serviceDuration: z.string().nullable().describe("Duration for the time-locked service (e.g., '30 days', '3 months')"),
+    providerWallet: z.string().nullable().describe("Compute provider wallet address for inference service"),
+    agentAddress: z.string().nullable().describe("Monitoring agent address for service verification"),
+    vaultOptIn: z.boolean().nullable().describe("Whether to use DeFi vault with 1% bonus yield"),
+    arbitrationContract: z.string().nullable().describe("Arbitration contract address for dispute resolution")
+});
+
+// **Combined Extraction Schema**
 export const UserInputExtractionSchema = z.object({
     extractedInfo: z.object({
-        projectName: z.string().nullable().describe("Name of the project/website"),
-        projectDescription: z.string().nullable().describe("Description of what needs to be built"),
-        clientName: z.string().nullable().describe("Name of the client/company"),
-        paymentAmount: z.number().nullable().describe("Payment amount in INR"),
-        walletAddress: z.string().nullable().describe("0G wallet address"),
-        email: z.string().nullable().describe("Client email address"),
-        timeline: z.string().nullable().describe("Project timeline"),
-        deliverables: z.array(z.string()).nullable().describe("Project deliverables"),
-        escrowType: z.string().nullable().describe("Preferred escrow or contract type such as milestone, time_locked, arbitration_enabled, or api_rental"),
-        arbitrationPreference: z.string().nullable().describe("Arbitration preferences including desire for escalation partners"),
-        arbitrationContract: z.string().nullable().describe("Arbitration contract address or identifier"),
-        serviceDuration: z.string().nullable().describe("Duration or schedule for time-locked or streaming services"),
-        apiEndpoint: z.string().nullable().describe("API endpoint or service URL that requires monitoring"),
-        uptimeSLA: z.string().nullable().describe("Desired uptime or latency SLA for monitored services"),
-        vaultOptIn: z.union([z.string(), z.boolean()]).nullable().describe("Preference for routing escrow funds through the insured DeFi vault with 1 percent yield")
+        // Base information (required for all)
+        ...BaseInfoSchema.shape,
+        // Type-specific information (conditional based on escrowType)
+        ...SimpleEscrowSchema.shape,
+        ...MilestoneEscrowSchema.shape,
+        ...TimeLockedEscrowSchema.shape
     }),
     completionStatus: z.object({
         isComplete: z.boolean().describe("Whether all required information is collected"),
+        hasEscrowType: z.boolean().describe("Whether escrow type is selected"),
         hasProjectName: z.boolean().describe("Whether project name is provided"),
         hasProjectDescription: z.boolean().describe("Whether project description is provided"),
         hasClientName: z.boolean().describe("Whether client name is provided"),
-        hasPaymentAmount: z.boolean().describe("Whether payment amount is provided"),
+        hasEmail: z.boolean().describe("Whether email is provided"),
         hasWalletAddress: z.boolean().describe("Whether wallet address is provided"),
-        hasEmail: z.boolean().describe("Whether email is provided")
+        hasPaymentAmount: z.boolean().describe("Whether payment amount is provided"),
+        hasFreelancerAddress: z.boolean().describe("Whether freelancer address is provided")
     })
 });
 
@@ -51,7 +80,7 @@ type ProjectState = {
     result?: string,
     walletAddress?: string,
     // Enhanced stage management for conversation flow
-    stage?: 'initial' | 'information_collection' | 'data_ready' | 'completed',
+    stage?: 'initial' | 'information_collection' | 'escrow_selection' | 'base_collection' | 'type_specific_collection' | 'data_ready' | 'completed',
     information_collection?: boolean,
     // Progress tracking for frontend synchronization
     progress?: number, // 0-100 percentage
@@ -61,59 +90,140 @@ type ProjectState = {
     stageData?: any, // Data for current stage
     validationErrors?: string[], // Validation errors for frontend
     formData?: any, // Form data for frontend
-    // Information collection tracking
+    // Information collection tracking - Base fields (required for all escrow types)
     collectedFields?: {
+        escrowType?: boolean,
         projectName?: boolean,
         projectDescription?: boolean,
         clientName?: boolean,
         email?: boolean,
         walletAddress?: boolean,
         paymentAmount?: boolean,
-        escrowType?: boolean,
-        arbitrationPreference?: boolean,
-        arbitrationContract?: boolean,
-        serviceDuration?: boolean,
-        apiEndpoint?: boolean,
-        uptimeSLA?: boolean,
-        vaultOptIn?: boolean,
+        freelancerAddress?: boolean,
+        // Type-specific fields (only collected based on escrowType)
+        milestones?: boolean, // milestone escrow only
+        vaultOptIn?: boolean, // milestone & time_locked escrow
+        arbitrationContract?: boolean, // milestone & time_locked escrow
+        serviceDuration?: boolean, // time_locked escrow only
+        providerWallet?: boolean, // time_locked escrow only
+        agentAddress?: boolean, // time_locked escrow only
     },
-    // Project information
-    projectInfo?: {
+    // Project information organized by category
+    baseInfo?: {
         projectName?: string,
         projectDescription?: string,
-        deliverables?: string[],
-        timeline?: string,
-        requirements?: string,
-        revisions?: number,
-    },
-    clientInfo?: {
         clientName?: string,
-        walletAddress?: string,
         email?: string,
+        walletAddress?: string,
+        paymentAmount?: number,
+        freelancerAddress?: string,
+        escrowType?: 'simple' | 'milestone' | 'time_locked',
     },
-    financialInfo?: {
-        paymentAmount?: number, // Payment in INR
-        platformFees?: number, // Platform fees in INR
-        escrowFee?: number, // Escrow service fee in INR
-        totalEscrowAmount?: number, // Total amount in INR
-        currency?: string, // Currency (INR)
-        zeroGEquivalent?: number, // Equivalent in 0G tokens
-    },
-    contractOptions?: {
-        escrowType?: string,
-        arbitrationPreference?: string,
-        arbitrationContract?: string,
-        vaultOptIn?: string | boolean,
-    },
-    serviceMonitoring?: {
+    // Type-specific information (only populated based on escrowType)
+    typeSpecificInfo?: {
+        // Milestone Escrow fields
+        milestones?: { description?: string, amount?: number }[],
+        // Time-Locked Escrow fields  
         serviceDuration?: string,
-        apiEndpoint?: string,
-        uptimeSLA?: string,
+        providerWallet?: string,
+        agentAddress?: string,
+        // Shared optional fields
+        vaultOptIn?: boolean,
+        arbitrationContract?: string,
     },
     dataReady?: boolean,
     // 0G Compute Integration
     inferenceReady?: boolean, // Signal that data is ready for secure inference
     collectedData?: any, // Complete collected data for inference
+}
+
+// **Collection Logic Functions**
+
+// Determine required fields based on escrow type
+function getRequiredFieldsForEscrowType(escrowType: string): string[] {
+    const baseFields = ['projectName', 'projectDescription', 'clientName', 'email', 'walletAddress', 'paymentAmount', 'freelancerAddress'];
+    
+    switch (escrowType) {
+        case 'simple':
+            return baseFields; // No additional fields for PacterEscrowV2
+        case 'milestone':
+            return [...baseFields, 'milestones']; // MilestoneEscrow requires milestones
+        case 'time_locked':
+            return [...baseFields, 'serviceDuration', 'providerWallet', 'agentAddress']; // TimeLockedEscrow requirements
+        default:
+            return baseFields;
+    }
+}
+
+// Check if all required fields for the selected escrow type are collected
+function areRequiredFieldsCollected(state: ProjectState): boolean {
+    console.log("Checking if required fields are collected...");
+    console.log("Current state:", {
+        escrowType: state.baseInfo?.escrowType,
+        baseInfo: state.baseInfo,
+        typeSpecificInfo: state.typeSpecificInfo,
+        collectedFields: state.collectedFields
+    });
+    
+    if (!state.baseInfo?.escrowType) {
+        console.log("No escrow type set, fields not collected");
+        return false;
+    }
+    
+    const requiredFields = getRequiredFieldsForEscrowType(state.baseInfo.escrowType);
+    console.log("Required fields for", state.baseInfo.escrowType, ":", requiredFields);
+    
+    // Check if all required fields have actual values (not just marked as collected)
+    for (const field of requiredFields) {
+        let hasValue = false;
+        
+        // Check base info fields
+        if (['projectName', 'projectDescription', 'clientName', 'email', 'walletAddress', 'paymentAmount', 'freelancerAddress'].includes(field)) {
+            const value = state.baseInfo?.[field as keyof typeof state.baseInfo];
+            hasValue = value !== null && value !== undefined && value !== '';
+        }
+        // Check type-specific fields
+        else if (['milestones', 'serviceDuration', 'providerWallet', 'agentAddress'].includes(field)) {
+            const value = state.typeSpecificInfo?.[field as keyof typeof state.typeSpecificInfo];
+            if (field === 'milestones') {
+                hasValue = Array.isArray(value) && value.length > 0;
+            } else {
+                hasValue = value !== null && value !== undefined && value !== '';
+            }
+        }
+        
+        console.log(`Field ${field}: hasValue = ${hasValue}, value =`, 
+            field === 'milestones' ? state.typeSpecificInfo?.milestones :
+            ['projectName', 'projectDescription', 'clientName', 'email', 'walletAddress', 'paymentAmount', 'freelancerAddress'].includes(field) ?
+            state.baseInfo?.[field as keyof typeof state.baseInfo] :
+            state.typeSpecificInfo?.[field as keyof typeof state.typeSpecificInfo]
+        );
+        
+        if (!hasValue) {
+            console.log(`Required field ${field} is missing or empty`);
+            return false;
+        }
+    }
+    
+    console.log("All required fields are collected!");
+    return true;
+}
+
+// Get the next missing field to collect
+function getNextMissingField(state: ProjectState): string | null {
+    const escrowType = state.baseInfo?.escrowType;
+    if (!escrowType) return 'escrowType';
+    
+    const requiredFields = getRequiredFieldsForEscrowType(escrowType);
+    const collectedFields = state.collectedFields || {};
+    
+    for (const field of requiredFields) {
+        if (!collectedFields[field as keyof typeof collectedFields]) {
+            return field;
+        }
+    }
+    
+    return null; // All required fields collected
 }
 
 export default function nodegraph() {
@@ -136,11 +246,8 @@ export default function nodegraph() {
             validationErrors: { value: null },
             formData: { value: null },
             collectedFields: { value: null },
-            projectInfo: { value: null },
-            clientInfo: { value: null },
-            financialInfo: { value: null },
-            contractOptions: { value: null },
-            serviceMonitoring: { value: null },
+            baseInfo: { value: null },
+            typeSpecificInfo: { value: null },
             dataReady: { value: null },
             // 0G Compute Integration
             inferenceReady: { value: null },
@@ -266,26 +373,45 @@ Always end your response with one of these hidden classification tags:
             isStageComplete: false,
             validationErrors: [],
             collectedFields: {
+                escrowType: false,
                 projectName: false,
                 projectDescription: false,
                 clientName: false,
                 email: false,
                 walletAddress: !!state.walletAddress,
                 paymentAmount: false,
-                escrowType: false,
-                arbitrationPreference: false,
+                freelancerAddress: false,
+                milestones: false,
+                vaultOptIn: false,
                 arbitrationContract: false,
                 serviceDuration: false,
-                apiEndpoint: false,
-                uptimeSLA: false,
-                vaultOptIn: false,
+                providerWallet: false,
+                agentAddress: false,
+            },
+            baseInfo: {
+                projectName: undefined,
+                projectDescription: undefined,
+                clientName: undefined,
+                email: undefined,
+                walletAddress: state.walletAddress,
+                paymentAmount: undefined,
+                freelancerAddress: undefined,
+                escrowType: undefined,
+            },
+            typeSpecificInfo: {
+                milestones: undefined,
+                serviceDuration: undefined,
+                providerWallet: undefined,
+                agentAddress: undefined,
+                vaultOptIn: undefined,
+                arbitrationContract: undefined,
             }
         };
     });
 
     // Information Collection Node: Systematically collects all required project details
     graph.addNode("collect_initiator_info", async (state: ProjectState) => {
-        const COLLECTION_SYSTEM_TEMPLATE = `You are Pacter AI's information collection specialist. Your role is to systematically gather the core escrow inputs and advanced service options needed for contract setup.
+        const COLLECTION_SYSTEM_TEMPLATE = `You are Pacter AI's information collection specialist. Your role is to systematically gather project details based on the selected escrow type.
 
 ## CRITICAL RULES - READ CAREFULLY:
 1. **NEVER ASSUME OR INVENT INFORMATION** - Only use what the user explicitly provides
@@ -294,19 +420,136 @@ Always end your response with one of these hidden classification tags:
 4. **NO DEFAULT VALUES** - Don't fill in missing information with placeholders or assumptions
 5. **VALIDATE BEFORE STORING** - Only store information that was actually provided by the user
 
-## Required Information (Core Items):
-1. **Project Name** - Clear, descriptive title (e.g., "E-commerce Website", "Mobile App")
-2. **Project Description** - Detailed scope, what needs to be built (minimum 10 words)
-3. **Client Name** - Full name of the person/company hiring (e.g., "John Doe", "Acme Corp")
-4. **Email Address** - Valid email format (e.g., "john@example.com")
-5. **Wallet Address** - 0G blockchain wallet (automatically captured if connected)
-6. **Payment Amount** - Total project cost in INR (numbers only, e.g., "50000")
+## Escrow Type Selection (Ask First):
+If escrow type is not selected, ask user to choose:
+• **Simple Code Handover** – One-off delivery using PacterEscrowV2 (websites, apps, design work, one-time projects)
+• **Milestone-Based Project** – Staged delivery using MilestoneEscrow (multi-phase projects with checkpoints)
+• **Time-Locked Service** – Continuous service using TimeLockedEscrow (API services, hosting, maintenance, ongoing services)
 
-## Advanced Options (Collect after core items are complete):
-1. **Escrow Type / Service Mode** - Milestone, time-locked inference, arbitration-enabled, or standard escrow. For time-locked inference, capture the compute provider name and wallet, plus the agent address that will operate the stream.
-2. **Arbitration Preference** - Desired arbitration partner and any contract address to route disputes
-3. **Service Monitoring** - API endpoint, uptime or latency SLA, and subscription duration for compute rentals or GPU streaming
-4. **Vault Opt-In** - Whether to route idle escrow balances through the insured DeFi vault with 1% bonus, and if yes, note any special yield split preferences
+## CRITICAL ESCROW TYPE MAPPING:
+- **API service, API hosting, inference service, continuous service, maintenance** → time_locked
+- **Website, mobile app, design work, one-time delivery** → simple  
+- **Multi-stage project, phased delivery, milestone-based** → milestone
+
+When user mentions "API service" or similar continuous services, ALWAYS map to escrowType: "time_locked"
+
+## Required Information Based on Escrow Type:
+
+### Base Information (Required for ALL escrow types):
+1. **Project Name** – Clear, descriptive title (e.g., "E-commerce Website", "Mobile App")
+2. **Project Description** – Detailed scope, what needs to be built (minimum 10 words)
+3. **Client Name** – Full name of the person/company hiring (e.g., "John Doe", "Acme Corp")
+4. **Email Address** – Valid email format (e.g., "john@example.com")
+5. **Wallet Address** – 0G blockchain wallet (automatically captured if connected)
+6. **Payment Amount** – Total project cost in INR (numbers only, e.g., "50000")
+7. **Freelancer Address** – Freelancer's 0G wallet address
+
+### Additional Requirements by Escrow Type:
+
+**Simple Code Handover (PacterEscrowV2):**
+- No additional fields required
+- No vault, arbitration, or milestone options available
+
+**Milestone-Based Project (MilestoneEscrow):**
+- **Milestones** (Required) – List of project stages with descriptions and optional amounts
+- **Vault Opt-In** (Optional) – Park idle escrow in insured DeFi vault with ~1% bonus
+- **Arbitration Contract** (Optional) – Contract address for dispute resolution
+
+**Time-Locked Service (TimeLockedEscrow):**
+- **Service Duration** (Required) – How long the service runs (e.g., "30 days", "3 months")
+- **Provider Wallet** (Required) – Compute provider wallet address for inference service
+- **Agent Address** (Required) – Monitoring agent address for service verification
+- **Vault Opt-In** (Optional) – Park idle escrow in insured DeFi vault with ~1% bonus
+- **Arbitration Contract** (Optional) – Contract address for dispute resolution
+
+## Example Interactions by Collection Phase:
+
+### Phase 1: Escrow Type Selection
+**User:** "I want to create an escrow"
+**You:** "I'll help you set up a secure escrow! First, what type of project is this?
+
+• **Simple Code Handover** – One-time delivery (website, app, design work)
+• **Milestone-Based Project** – Multi-stage project with checkpoints  
+• **Time-Locked Service** – Ongoing service (API hosting, maintenance)
+
+Which option fits your project?"
+
+### Phase 2: Base Information Collection Examples
+
+**Asking for Project Name:**
+**User:** "I choose milestone-based"
+**You:** "Perfect! Milestone-based escrow selected ✅
+
+What's the project name? (e.g., 'E-commerce Website', 'Mobile App Development')"
+
+**Asking for Project Description:**
+**User:** "Website redesign"
+**You:** "Project name: Website redesign ✅
+
+Please describe what needs to be built. Include key features, pages, or functionality you want. (minimum 10 words)"
+
+**Asking for Client Name:**
+**User:** "A modern responsive website with shopping cart, user accounts, and payment integration"
+**You:** "Project description captured ✅
+
+What's your full name or company name? (This will appear on the contract)"
+
+**Asking for Email:**
+**User:** "John Smith"
+**You:** "Client name: John Smith ✅
+
+What's your email address? (We'll send contract updates here)"
+
+**Asking for Payment Amount:**
+**User:** "john@example.com"
+**You:** "Email: john@example.com ✅
+
+What's the total project cost in INR? (Enter numbers only, e.g., 50000)"
+
+**Asking for Freelancer Address:**
+**User:** "75000"
+**You:** "Payment amount: ₹75,000 INR ✅
+
+What's the freelancer's 0G wallet address? (They should provide this to you)"
+
+### Phase 3: Type-Specific Collection Examples
+
+**Milestone Collection (Milestone Escrow):**
+**User:** "0x1234...abcd"
+**You:** "Freelancer address captured ✅
+
+Now let's set up your project milestones. Please list each milestone with a description:
+
+**Example format:**
+1. Design mockups and wireframes
+2. Frontend development and styling  
+3. Backend API and database setup
+4. Testing and final deployment
+
+What are your project milestones?"
+
+**Vault Opt-in (Milestone/Time-Locked):**
+**User:** [after milestones provided]
+**You:** "Milestones captured ✅
+
+**Optional DeFi Vault:** Would you like to park idle escrow funds in an insured DeFi vault? This earns ~1% bonus yield while funds wait for milestone completion.
+
+• **Yes** – Earn bonus yield on idle funds
+• **No** – Keep funds in standard escrow
+
+Your choice?"
+
+**Service Duration (Time-Locked):**
+**User:** "0x5678...efgh"
+**You:** "Freelancer address captured ✅
+
+How long should this service run? (e.g., '30 days', '3 months', '1 year')"
+
+**Provider Wallet (Time-Locked):**
+**User:** "6 months"
+**You:** "Service duration: 6 months ✅
+
+What's the compute provider's wallet address? (This is who will provide the inference service)"
 
 ## Internal Collection Status (DO NOT SHOW TO USER):
 {collection_status}
@@ -319,56 +562,57 @@ Always end your response with one of these hidden classification tags:
 ## Collection Strategy:
 - **ACKNOWLEDGE FIRST**: If user provided information, acknowledge it specifically
 - **EXTRACT CAREFULLY**: Only extract information that is clearly stated in the user's message
-- **ASK FOR NEXT**: Request the NEXT missing field with clear examples
+- **ASK FOR NEXT**: Request the NEXT missing field with clear examples based on escrow type
 - **BE SPECIFIC**: Give examples of what you're asking for
 - **NEVER REPEAT**: Don't ask for information that's already collected
 
 ## Example Interactions:
 
-**Example 1 - User says "I am a client":**
-User: "I am a client"
-You: "Great! I'll help you set up a secure escrow for your project. I need to collect a few details:
+**Example 1 - Escrow Type Selection:**
+User: "I want to create an escrow"
+You: "Great! I'll help you set up a secure escrow. First, what type of project is this?
 
-Let's start with the project name. What would you like to call this project? (e.g., 'E-commerce Website', 'Mobile App Development')"
+• **Simple Code Handover** – One-off delivery (website, app, etc.)
+• **Milestone-Based Project** – Staged delivery with multiple checkpoints
+• **Time-Locked Service** – Ongoing service with duration (API, inference, etc.)
 
-**Example 2 - User provides project name:**
-User: "Website Redesign"
-You: "Perfect! ✅ Project Name: Website Redesign
+Which option fits your project?"
 
-Now, can you describe what needs to be built? Please provide details about the scope and requirements."
+**Example 2 - Simple Escrow Flow:**
+User: "Simple code handover"
+You: "Perfect! ✅ Escrow Type: Simple Code Handover
 
-**Example 3 - User provides name and email:**
-User: "I'm John Doe, email is john@example.com"
-You: "Excellent! I've saved:
-✅ Client Name: John Doe
-✅ Email: john@example.com
+This uses our PacterEscrowV2 contract for straightforward project delivery. What's the project name? (e.g., 'E-commerce Website', 'Mobile App Development')"
 
-What's the project name? (e.g., 'Mobile App Development', 'Website Redesign')"
+**Example 3 - Milestone Escrow Flow:**
+User: "Milestone-based project"
+You: "Excellent! ✅ Escrow Type: Milestone-Based Project
 
-**Example 4 - User provides payment amount:**
-User: "The budget is 50000 rupees"
-You: "Great! ✅ Payment Amount: ₹50,000 INR
+This uses our MilestoneEscrow contract for staged delivery. What's the project name? (e.g., 'E-commerce Website', 'Mobile App Development')"
 
-All information collected! Let me prepare the final summary for you. [READY_FOR_DATA]"
+**Example 4 - Collecting Milestones:**
+User: "The milestones are: 1) Design mockups, 2) Frontend development, 3) Backend integration, 4) Testing and deployment"
+You: "Perfect! ✅ Milestones: 4 stages defined
 
-**Example 5 - User confirms time-locked inference details:**
-User: "Route it through Nova GPU for 90 days, agent 0xAgent, and yes park funds in the vault."
-You: "Perfect! ✅ Escrow Type: Time-locked inference
-✅ Provider Wallet: Nova GPU (0xAgent)
-✅ Vault Opt-In: Yes, yield share noted
+Since this is a milestone-based escrow, would you like to opt into our DeFi vault? It parks idle funds in an insured vault with ~1% bonus yield while keeping funds available for milestone payments. (Yes/No)"
 
-Could you also share the API endpoint or SLA target so I can configure monitoring?"
+**Example 5 - Time-Locked Service:**
+User: "Time-locked service for 90 days"
+You: "Great! ✅ Escrow Type: Time-Locked Service
+✅ Service Duration: 90 days
+
+What's the compute provider wallet address for this inference service?"
 
 ## Response Format:
 1. If user provided new information: Acknowledge it specifically with ✅
 2. **DO NOT show raw collection status or missing fields list**
-3. Ask for the NEXT missing field in a natural, conversational way with examples
+3. Ask for the NEXT missing field based on escrow type requirements
 4. Be encouraging, professional, and friendly
 5. Keep responses concise and focused on ONE question at a time
 
 End your response with:
 - [CONTINUE_INFO] - if more information is needed
-- [READY_FOR_DATA] - if all 6 items are collected
+- [READY_FOR_DATA] - if all required fields for the selected escrow type are collected
 
 Current stage: {stage}`;
 
@@ -378,11 +622,10 @@ Current stage: {stage}`;
             ["human", "{input}"]
         ]);
 
-        // Prepare collected info summary
+        // Prepare collected info summary using new structure
         const collectedInfo = {
-            projectInfo: state.projectInfo || {},
-            clientInfo: state.clientInfo || {},
-            financialInfo: state.financialInfo || {}
+            baseInfo: state.baseInfo || {},
+            typeSpecificInfo: state.typeSpecificInfo || {}
         };
 
         // Prepare collection status
@@ -401,116 +644,66 @@ Current stage: {stage}`;
         console.log(response.content, "Collection Node Response");
 
         // Use structured extraction to capture information
-        let extractedData = {};
+        const extractedData = {};
         const updatedState = { ...state };
         
         // Initialize state objects if they don't exist
-        if (!updatedState.projectInfo) updatedState.projectInfo = {};
-        if (!updatedState.clientInfo) updatedState.clientInfo = {};
-        if (!updatedState.financialInfo) updatedState.financialInfo = {};
-        if (!updatedState.contractOptions) updatedState.contractOptions = {};
-        if (!updatedState.serviceMonitoring) updatedState.serviceMonitoring = {};
+        if (!updatedState.baseInfo) updatedState.baseInfo = {};
+        if (!updatedState.typeSpecificInfo) updatedState.typeSpecificInfo = {};
+        if (!updatedState.collectedFields) updatedState.collectedFields = {};
         
-        try {
-            const structuredLLM = model.withStructuredOutput(UserInputExtractionSchema, {
-                name: "information_extraction",
-                method: "function_calling"
-            });
-            
-            const structuredResponse = await structuredLLM.invoke([
-                new HumanMessage(state.input)
-            ]);
-            
-            console.log("Structured extraction result:", JSON.stringify(structuredResponse, null, 2));
-            
-            if (structuredResponse && typeof structuredResponse === 'object' && structuredResponse.extractedInfo) {
-                extractedData = structuredResponse;
-                const extracted = structuredResponse.extractedInfo;
-                
-                // Update project info - preserve existing data
-                if (extracted.projectName || extracted.projectDescription || extracted.timeline || extracted.deliverables) {
-                    updatedState.projectInfo = { 
-                        ...updatedState.projectInfo,
-                        ...(extracted.projectName && { projectName: extracted.projectName }),
-                        ...(extracted.projectDescription && { projectDescription: extracted.projectDescription }),
-                        ...(extracted.timeline && { timeline: extracted.timeline }),
-                        ...(extracted.deliverables && { deliverables: extracted.deliverables })
-                    };
-                }
-                
-                // Update client info - preserve existing data
-                if (extracted.clientName || extracted.email || extracted.walletAddress) {
-                    updatedState.clientInfo = { 
-                        ...updatedState.clientInfo,
-                        ...(extracted.clientName && { clientName: extracted.clientName }),
-                        ...(extracted.email && { email: extracted.email }),
-                        ...(extracted.walletAddress && { walletAddress: extracted.walletAddress })
-                    };
-                }
-                
-                // Update financial info - preserve existing data
-                if (extracted.paymentAmount) {
-                    updatedState.financialInfo = { 
-                        ...updatedState.financialInfo,
-                        paymentAmount: extracted.paymentAmount,
-                        currency: 'INR'
-                    };
-                }
-
-                if (extracted.escrowType || extracted.arbitrationPreference || extracted.arbitrationContract || typeof extracted.vaultOptIn !== 'undefined') {
-                    const vaultPreference = typeof extracted.vaultOptIn === 'boolean'
-                        ? extracted.vaultOptIn
-                        : extracted.vaultOptIn || undefined;
-
-                    updatedState.contractOptions = {
-                        ...updatedState.contractOptions,
-                        ...(extracted.escrowType && { escrowType: extracted.escrowType }),
-                        ...(extracted.arbitrationPreference && { arbitrationPreference: extracted.arbitrationPreference }),
-                        ...(extracted.arbitrationContract && { arbitrationContract: extracted.arbitrationContract }),
-                        ...(typeof extracted.vaultOptIn !== 'undefined' && { vaultOptIn: vaultPreference })
-                    };
-                }
-
-                if (extracted.serviceDuration || extracted.apiEndpoint || extracted.uptimeSLA) {
-                    updatedState.serviceMonitoring = {
-                        ...updatedState.serviceMonitoring,
-                        ...(extracted.serviceDuration && { serviceDuration: extracted.serviceDuration }),
-                        ...(extracted.apiEndpoint && { apiEndpoint: extracted.apiEndpoint }),
-                        ...(extracted.uptimeSLA && { uptimeSLA: extracted.uptimeSLA })
-                    };
-                }
-            }
-        } catch (error) {
-            console.log("Structured extraction failed, using fallback", error);
-        }
+        // DISABLE STRUCTURED EXTRACTION TO PREVENT HALLUCINATION
+        // The AI was generating fake data even with strict prompts
+        // Instead, rely on conversational flow to collect information step by step
         
-        // If wallet address is provided in state but not in clientInfo, add it
-        if (state.walletAddress && !updatedState.clientInfo.walletAddress) {
-            updatedState.clientInfo.walletAddress = state.walletAddress;
+        console.log("Skipping structured extraction to prevent hallucination");
+        
+        // If wallet address is provided in state but not in baseInfo, add it
+        if (state.walletAddress && !updatedState.baseInfo.walletAddress) {
+            updatedState.baseInfo.walletAddress = state.walletAddress;
         }
 
-        // Update collected fields tracking
+        // Update collected fields tracking based on new structure
         const newCollectedFields = {
-            projectName: !!(updatedState.projectInfo?.projectName),
-            projectDescription: !!(updatedState.projectInfo?.projectDescription),
-            clientName: !!(updatedState.clientInfo?.clientName),
-            email: !!(updatedState.clientInfo?.email),
-            walletAddress: !!(updatedState.clientInfo?.walletAddress || state.walletAddress),
-            paymentAmount: !!(updatedState.financialInfo?.paymentAmount),
-            escrowType: !!(updatedState.contractOptions?.escrowType),
-            arbitrationPreference: !!(updatedState.contractOptions?.arbitrationPreference),
-            arbitrationContract: !!(updatedState.contractOptions?.arbitrationContract),
-            serviceDuration: !!(updatedState.serviceMonitoring?.serviceDuration),
-            apiEndpoint: !!(updatedState.serviceMonitoring?.apiEndpoint),
-            uptimeSLA: !!(updatedState.serviceMonitoring?.uptimeSLA),
-            vaultOptIn: updatedState.contractOptions?.vaultOptIn !== undefined && updatedState.contractOptions?.vaultOptIn !== null,
+            // Base fields (required for all escrow types)
+            escrowType: !!(updatedState.baseInfo?.escrowType),
+            projectName: !!(updatedState.baseInfo?.projectName),
+            projectDescription: !!(updatedState.baseInfo?.projectDescription),
+            clientName: !!(updatedState.baseInfo?.clientName),
+            email: !!(updatedState.baseInfo?.email),
+            walletAddress: !!(updatedState.baseInfo?.walletAddress || state.walletAddress),
+            paymentAmount: !!(updatedState.baseInfo?.paymentAmount),
+            freelancerAddress: !!(updatedState.baseInfo?.freelancerAddress),
+            // Type-specific fields (only collected based on escrowType)
+            milestones: Array.isArray(updatedState.typeSpecificInfo?.milestones) && (updatedState.typeSpecificInfo?.milestones?.length || 0) > 0,
+            vaultOptIn: updatedState.typeSpecificInfo?.vaultOptIn !== undefined && updatedState.typeSpecificInfo?.vaultOptIn !== null,
+            arbitrationContract: !!(updatedState.typeSpecificInfo?.arbitrationContract),
+            serviceDuration: !!(updatedState.typeSpecificInfo?.serviceDuration),
+            providerWallet: !!(updatedState.typeSpecificInfo?.providerWallet),
+            agentAddress: !!(updatedState.typeSpecificInfo?.agentAddress),
         };
 
-        const totalRequired = Object.keys(newCollectedFields).length;
-        const collectedCount = Object.values(newCollectedFields).filter(Boolean).length;
+        // Determine if all required fields for the selected escrow type are collected
+        const escrowType = updatedState.baseInfo?.escrowType;
+        let allRequiredFieldsCollected = false;
+        let collectedCount = 0;
+        let totalRequired = 0;
+        
+        if (escrowType) {
+            const requiredFields = getRequiredFieldsForEscrowType(escrowType);
+            totalRequired = requiredFields.length;
+            collectedCount = requiredFields.filter(field => newCollectedFields[field as keyof typeof newCollectedFields]).length;
+            allRequiredFieldsCollected = areRequiredFieldsCollected({ ...updatedState, collectedFields: newCollectedFields });
+        } else {
+            // If no escrow type selected, count base fields only
+            const baseFields = ['escrowType', 'projectName', 'projectDescription', 'clientName', 'email', 'walletAddress', 'paymentAmount', 'freelancerAddress'];
+            totalRequired = baseFields.length;
+            collectedCount = baseFields.filter(field => newCollectedFields[field as keyof typeof newCollectedFields]).length;
+        }
+        
         const progress = Math.round((collectedCount / totalRequired) * 80) + 10;
         
-        console.log(`Collection progress: ${collectedCount}/6 fields collected (${progress}%)`);
+        console.log(`Collection progress: ${collectedCount}/${totalRequired} fields collected (${progress}%)`);
         console.log("Collected fields:", newCollectedFields);
         
         // Determine next operation
@@ -519,14 +712,14 @@ Current stage: {stage}`;
         let nextStage = 'information_collection';
         let isComplete = false;
         
-        // Only move to final processing when ALL 6 fields are collected
-        if (content.includes("[READY_FOR_DATA]") || collectedCount === totalRequired) {
+        // Only move to final processing when ALL required fields for the escrow type are collected
+        if (allRequiredFieldsCollected) {
             operation = "request_missing_info";
             nextStage = 'data_ready';
             isComplete = true;
-            console.log("All information collected! Moving to final processing.");
+            console.log("All required information collected! Moving to final processing.");
         } else {
-            console.log(`Still collecting information. Missing ${totalRequired - collectedCount} fields.`);
+            console.log(`Still collecting information for escrow type '${escrowType || 'not selected'}'. Missing ${totalRequired - collectedCount} fields.`);
         }
 
         // Clean response
@@ -537,11 +730,8 @@ Current stage: {stage}`;
             messages: [cleanedContent], 
             operation: operation,
             stage: nextStage,
-            projectInfo: updatedState.projectInfo,
-            clientInfo: updatedState.clientInfo,
-            financialInfo: updatedState.financialInfo,
-            contractOptions: updatedState.contractOptions,
-            serviceMonitoring: updatedState.serviceMonitoring,
+            baseInfo: updatedState.baseInfo,
+            typeSpecificInfo: updatedState.typeSpecificInfo,
             progress: progress,
             stageIndex: isComplete ? 2 : 1,
             currentFlowStage: isComplete ? 'Information Complete' : 'Collecting Information',
@@ -561,7 +751,7 @@ Current stage: {stage}`;
         const FINAL_SYSTEM_TEMPLATE = `You are Pacter AI's final data validator. Your role is to verify all collected information and provide a professional summary.
 
 ## CRITICAL VALIDATION RULES:
-1. **VERIFY ALL FIELDS** - Ensure all 6 required fields are present
+1. **VERIFY ALL FIELDS** - Ensure all required fields are present based on escrow type
 2. **NO ASSUMPTIONS** - Only use data that was actually collected
 3. **CLEAR SUMMARY** - Present information in a user-friendly format
 
@@ -570,22 +760,21 @@ Current stage: {stage}`;
 ### Project Details:
 - Project Name: {project_name}
 - Description: {project_description}
+- Escrow Type: {escrow_type}
+- Milestones: {milestones}
 
 ### Client Information:
 - Client Name: {client_name}
 - Email: {email}
 - Wallet Address: {wallet_address}
+- Freelancer Address: {freelancer_address}
 
-### Arbitration & Contract Options:
-- Escrow Type: {escrow_type}
-- Arbitration Preference: {arbitration_preference}
-- Arbitration Contract: {arbitration_contract}
-- Vault Opt-In: {vault_opt_in}
-
-### Service Monitoring:
-- API Endpoint: {api_endpoint}
-- SLA Target: {uptime_sla}
+### Type-Specific Details:
 - Service Duration: {service_duration}
+- Provider Wallet: {provider_wallet}
+- Agent Address: {agent_address}
+- Vault Opt-In: {vault_opt_in}
+- Arbitration Contract: {arbitration_contract}
 
 ### Financial Details:
 - Payment Amount: ₹{payment_amount} INR
@@ -598,36 +787,34 @@ Current stage: {stage}`;
 Provide a professional summary that:
 
 1. **Congratulates** the user on completing information collection
-2. **Displays** all collected information in a clear format, including vault routing and any time-locked inference settings
+2. **Displays** collected information based on escrow type (only show relevant fields)
 3. **Shows** the financial breakdown with fees
 4. **Explains** what happens next (contract generation and deployment)
-5. **Asks for confirmation** before proceeding, calling out any remaining provider or monitoring items if missing
+5. **Asks for confirmation** before proceeding
+
+## Escrow Type Display Rules:
+- **Simple Code Handover**: Show project info, client info, freelancer address, financial details only
+- **Milestone-Based Project**: Show project info, client info, freelancer address, milestones, vault opt-in (if selected), arbitration contract (if provided), financial details
+- **Time-Locked Service**: Show project info, client info, service duration, provider wallet, agent address, vault opt-in (if selected), arbitration contract (if provided), financial details
 
 ## Response Format:
 
 🎉 **Information Collection Complete!**
 
-Here's a summary of your project details:
+Here's a summary of your {escrow_type} escrow:
 
 **📋 Project Information:**
 • Project Name: [name]
 • Description: [description]
+• Escrow Type: [type]
 
 **👤 Client Information:**
 • Name: [name]
 • Email: [email]
 • Wallet: [address]
+• Freelancer: [freelancer_address]
 
-**🤝 Arbitration & Contract Options:**
-• Escrow Type: [escrow_type]
-• Arbitration Preference: [arbitration_preference]
-• Arbitration Contract: [arbitration_contract]
-• Vault Opt-In: [vault_opt_in]
-
-**📊 Service Monitoring:**
-• API Endpoint: [api_endpoint]
-• SLA Target: [uptime_sla]
-• Service Duration: [service_duration]
+[Show type-specific sections only if relevant to escrow type]
 
 **💰 Financial Breakdown:**
 • Project Payment: ₹[amount] INR
@@ -653,7 +840,7 @@ Always end with: [DATA_COMPLETE]`;
         ]);
 
         // Calculate comprehensive financial information
-        const paymentAmount = state.financialInfo?.paymentAmount || 0;
+        const paymentAmount = state.baseInfo?.paymentAmount || 0;
         const platformFee = Math.round((paymentAmount * 0.025) * 100) / 100; // 2.5%
         const escrowFee = Math.round((paymentAmount * 0.005) * 100) / 100; // 0.5%
         const totalAmount = paymentAmount + platformFee + escrowFee;
@@ -662,19 +849,19 @@ Always end with: [DATA_COMPLETE]`;
         const response = await prompt.pipe(model).invoke({ 
             chat_history: state.chatHistory,
             stage: state.stage || 'data_ready',
-            project_name: state.projectInfo?.projectName || "Untitled Project",
-            project_description: state.projectInfo?.projectDescription || "No description",
-            timeline: state.projectInfo?.timeline || "To be determined",
-            client_name: state.clientInfo?.clientName || "Not provided",
-            email: state.clientInfo?.email || "Not provided",
-            wallet_address: state.clientInfo?.walletAddress || state.walletAddress || "Not provided",
-            escrow_type: state.contractOptions?.escrowType || "Not selected",
-            arbitration_preference: state.contractOptions?.arbitrationPreference || "Not specified",
-            arbitration_contract: state.contractOptions?.arbitrationContract || "Not provided",
-            vault_opt_in: state.contractOptions?.vaultOptIn === undefined || state.contractOptions?.vaultOptIn === null ? "Not set" : state.contractOptions?.vaultOptIn,
-            api_endpoint: state.serviceMonitoring?.apiEndpoint || "Not provided",
-            uptime_sla: state.serviceMonitoring?.uptimeSLA || "Not defined",
-            service_duration: state.serviceMonitoring?.serviceDuration || "Not provided",
+            project_name: state.baseInfo?.projectName || "Untitled Project",
+            project_description: state.baseInfo?.projectDescription || "No description",
+            escrow_type: state.baseInfo?.escrowType || "Not selected",
+            milestones: JSON.stringify(state.typeSpecificInfo?.milestones || []),
+            client_name: state.baseInfo?.clientName || "Not provided",
+            email: state.baseInfo?.email || "Not provided",
+            wallet_address: state.baseInfo?.walletAddress || state.walletAddress || "Not provided",
+            freelancer_address: state.baseInfo?.freelancerAddress || "Not provided",
+            service_duration: state.typeSpecificInfo?.serviceDuration || "Not provided",
+            provider_wallet: state.typeSpecificInfo?.providerWallet || "Not provided",
+            agent_address: state.typeSpecificInfo?.agentAddress || "Not provided",
+            vault_opt_in: state.typeSpecificInfo?.vaultOptIn === undefined || state.typeSpecificInfo?.vaultOptIn === null ? "Not set" : state.typeSpecificInfo?.vaultOptIn,
+            arbitration_contract: state.typeSpecificInfo?.arbitrationContract || "Not provided",
             payment_amount: paymentAmount.toFixed(2),
             platform_fee: platformFee.toFixed(2),
             escrow_fee: escrowFee.toFixed(2),
@@ -686,44 +873,49 @@ Always end with: [DATA_COMPLETE]`;
 
         // Create comprehensive final data object - ONLY with collected information
         const finalProjectData = {
-            projectInfo: {
-                projectName: state.projectInfo?.projectName || "",
-                projectDescription: state.projectInfo?.projectDescription || "",
-                timeline: state.projectInfo?.timeline || "To be determined",
-                deliverables: state.projectInfo?.deliverables || []
+            baseInfo: {
+                // Only include fields that have actual values (not undefined/null/empty)
+                ...(state.baseInfo?.projectName && { projectName: state.baseInfo.projectName }),
+                ...(state.baseInfo?.projectDescription && { projectDescription: state.baseInfo.projectDescription }),
+                ...(state.baseInfo?.clientName && { clientName: state.baseInfo.clientName }),
+                ...(state.baseInfo?.email && { email: state.baseInfo.email }),
+                ...((state.baseInfo?.walletAddress || state.walletAddress) && { 
+                    walletAddress: state.baseInfo?.walletAddress || state.walletAddress 
+                }),
+                ...(paymentAmount > 0 && { paymentAmount: paymentAmount }),
+                ...(state.baseInfo?.freelancerAddress && { freelancerAddress: state.baseInfo.freelancerAddress }),
+                ...(state.baseInfo?.escrowType && { escrowType: state.baseInfo.escrowType })
             },
-            clientInfo: {
-                clientName: state.clientInfo?.clientName || "",
-                email: state.clientInfo?.email || "",
-                walletAddress: state.clientInfo?.walletAddress || state.walletAddress || ""
+            typeSpecificInfo: {
+                // Only include fields that have actual values
+                ...(state.typeSpecificInfo?.milestones && state.typeSpecificInfo.milestones.length > 0 && { 
+                    milestones: state.typeSpecificInfo.milestones 
+                }),
+                ...(state.typeSpecificInfo?.serviceDuration && { serviceDuration: state.typeSpecificInfo.serviceDuration }),
+                ...(state.typeSpecificInfo?.providerWallet && { providerWallet: state.typeSpecificInfo.providerWallet }),
+                ...(state.typeSpecificInfo?.agentAddress && { agentAddress: state.typeSpecificInfo.agentAddress }),
+                ...(state.typeSpecificInfo?.vaultOptIn !== undefined && { vaultOptIn: state.typeSpecificInfo.vaultOptIn }),
+                ...(state.typeSpecificInfo?.arbitrationContract && { arbitrationContract: state.typeSpecificInfo.arbitrationContract })
             },
             financialInfo: {
-                paymentAmount: paymentAmount,
-                platformFees: platformFee,
-                escrowFee: escrowFee,
-                totalEscrowAmount: totalAmount,
-                currency: "INR",
-                zeroGEquivalent: zeroGEquivalent,
-                feeBreakdown: {
-                    projectPayment: paymentAmount,
-                    platformFee: platformFee,
+                ...(paymentAmount > 0 && {
+                    paymentAmount: paymentAmount,
+                    platformFees: platformFee,
                     escrowFee: escrowFee,
-                    total: totalAmount
-                }
-            },
-            contractOptions: {
-                escrowType: state.contractOptions?.escrowType || "",
-                arbitrationPreference: state.contractOptions?.arbitrationPreference || "",
-                arbitrationContract: state.contractOptions?.arbitrationContract || "",
-                vaultOptIn: state.contractOptions?.vaultOptIn ?? ""
-            },
-            serviceMonitoring: {
-                serviceDuration: state.serviceMonitoring?.serviceDuration || "",
-                apiEndpoint: state.serviceMonitoring?.apiEndpoint || "",
-                uptimeSLA: state.serviceMonitoring?.uptimeSLA || ""
+                    totalEscrowAmount: totalAmount,
+                    currency: "INR",
+                    zeroGEquivalent: zeroGEquivalent,
+                    feeBreakdown: {
+                        projectPayment: paymentAmount,
+                        platformFee: platformFee,
+                        escrowFee: escrowFee,
+                        total: totalAmount
+                    }
+                })
             },
             escrowDetails: {
-                escrowType: "freelance_project",
+                // Use actual escrow type from collected data, not hardcoded value
+                ...(state.baseInfo?.escrowType && { escrowType: state.baseInfo.escrowType }),
                 paymentMethod: "0G_tokens",
                 releaseCondition: "project_completion",
                 disputeResolution: "automated_mediation"
@@ -737,21 +929,22 @@ Always end with: [DATA_COMPLETE]`;
             }
         };
 
-        // Update final collected fields
+        // Update final collected fields - check if properties exist in the final data
         const finalCollectedFields = {
-            projectName: !!finalProjectData.projectInfo.projectName,
-            projectDescription: !!finalProjectData.projectInfo.projectDescription,
-            clientName: !!finalProjectData.clientInfo.clientName,
-            email: !!finalProjectData.clientInfo.email,
-            walletAddress: !!finalProjectData.clientInfo.walletAddress,
-            paymentAmount: !!finalProjectData.financialInfo.paymentAmount,
-            escrowType: !!finalProjectData.contractOptions.escrowType,
-            arbitrationPreference: !!finalProjectData.contractOptions.arbitrationPreference,
-            arbitrationContract: !!finalProjectData.contractOptions.arbitrationContract,
-            serviceDuration: !!finalProjectData.serviceMonitoring.serviceDuration,
-            apiEndpoint: !!finalProjectData.serviceMonitoring.apiEndpoint,
-            uptimeSLA: !!finalProjectData.serviceMonitoring.uptimeSLA,
-            vaultOptIn: finalProjectData.contractOptions.vaultOptIn !== "" && finalProjectData.contractOptions.vaultOptIn !== null && finalProjectData.contractOptions.vaultOptIn !== undefined,
+            projectName: !!finalProjectData.baseInfo?.projectName,
+            projectDescription: !!finalProjectData.baseInfo?.projectDescription,
+            clientName: !!finalProjectData.baseInfo?.clientName,
+            email: !!finalProjectData.baseInfo?.email,
+            walletAddress: !!finalProjectData.baseInfo?.walletAddress,
+            paymentAmount: !!finalProjectData.baseInfo?.paymentAmount,
+            freelancerAddress: !!finalProjectData.baseInfo?.freelancerAddress,
+            escrowType: !!finalProjectData.baseInfo?.escrowType,
+            milestones: Array.isArray(finalProjectData.typeSpecificInfo?.milestones) && finalProjectData.typeSpecificInfo.milestones.length > 0,
+            serviceDuration: !!finalProjectData.typeSpecificInfo?.serviceDuration,
+            providerWallet: !!finalProjectData.typeSpecificInfo?.providerWallet,
+            agentAddress: !!finalProjectData.typeSpecificInfo?.agentAddress,
+            vaultOptIn: finalProjectData.typeSpecificInfo?.vaultOptIn !== null && finalProjectData.typeSpecificInfo?.vaultOptIn !== undefined,
+            arbitrationContract: !!finalProjectData.typeSpecificInfo?.arbitrationContract,
         };
 
         // Clean response and prepare JSON output
@@ -766,10 +959,10 @@ Always end with: [DATA_COMPLETE]`;
 
 Thank you for providing all the details. Your contract is now being prepared.
 
-**Contract Mode:** ${finalProjectData.contractOptions.escrowType || 'Standard escrow'}
-**Arbitration:** ${finalProjectData.contractOptions.arbitrationPreference || 'Default automated mediation'}
-**Vault Routing:** ${finalProjectData.contractOptions.vaultOptIn === "" || finalProjectData.contractOptions.vaultOptIn === null || finalProjectData.contractOptions.vaultOptIn === undefined ? 'Not specified' : finalProjectData.contractOptions.vaultOptIn}
-**Service Monitoring:** ${finalProjectData.serviceMonitoring.apiEndpoint || 'No live service specified'}
+**Contract Mode:** ${finalProjectData.baseInfo.escrowType || 'Standard escrow'}
+**Vault Routing:** ${finalProjectData.typeSpecificInfo.vaultOptIn === null || finalProjectData.typeSpecificInfo.vaultOptIn === undefined ? 'Not specified' : finalProjectData.typeSpecificInfo.vaultOptIn}
+**Arbitration:** ${finalProjectData.typeSpecificInfo.arbitrationContract || 'Default automated mediation'}
+**Service Duration:** ${finalProjectData.typeSpecificInfo.serviceDuration || 'Not applicable'}
 
 **What's happening next:**
 • Generating legal contract with Indian law compliance
@@ -791,12 +984,8 @@ Please wait while we create your secure contract...`;
             messages: [finalResponse], 
             operation: "end",
             stage: 'completed',
-            projectInfo: finalProjectData.projectInfo,
-            clientInfo: finalProjectData.clientInfo,
-            financialInfo: finalProjectData.financialInfo,
-            contractOptions: finalProjectData.contractOptions,
-            serviceMonitoring: finalProjectData.serviceMonitoring,
-            finalData: finalProjectData,
+            baseInfo: finalProjectData.baseInfo,
+            typeSpecificInfo: finalProjectData.typeSpecificInfo,
             progress: 100,
             stageIndex: 3,
             currentFlowStage: 'Data Complete',
@@ -896,3 +1085,108 @@ Please wait while we create your secure contract...`;
     const data = graph.compile();
     return data;
 }
+
+
+// Enhanced collection node with proper state synchronization
+const collectInitiatorInfo = async (state: ProjectState): Promise<Partial<ProjectState>> => {
+    const { input, baseInfo = {}, collectedFields = {}, typeSpecificInfo = {} } = state;
+
+    // Calculate stage index based on collection progress
+    const getStageIndex = (progress: number): number => {
+        if (progress >= 100) return 5; // Contract Created
+        if (progress >= 80) return 4;  // Review Contract
+        if (progress >= 60) return 3;  // Payment Terms Set
+        if (progress >= 40) return 2;  // Deliverables Defined
+        if (progress >= 20) return 1;  // Project Details Entered
+        return 0; // Identity Selected
+    };
+
+    // Calculate current flow stage based on progress
+    const getCurrentFlowStage = (progress: number): string => {
+        const stages = [
+            "Identity Selected",
+            "Project Details Entered", 
+            "Deliverables Defined",
+            "Payment Terms Set",
+            "Review Contract",
+            "Contract Created"
+        ];
+        const index = getStageIndex(progress);
+        return stages[index] || stages[0];
+    };
+
+    // Process the input and update collected fields
+    const newBaseInfo = { ...baseInfo };
+    const newTypeSpecificInfo = { ...typeSpecificInfo };
+    const newCollectedFields = { ...collectedFields };
+
+    // Simple field collection logic based on input
+    if (input) {
+        // Extract basic info from input
+        if (input.includes('client:') || input.includes('freelancer:')) {
+            const roleMatch = input.match(/(client|freelancer):\s*(\w+)/i);
+            if (roleMatch) {
+                // Store role in baseInfo - using projectName as userRole field doesn't exist in type
+                newBaseInfo.projectName = roleMatch[1].toLowerCase();
+                newCollectedFields.projectName = true;
+            }
+        }
+        
+        // Extract project name
+        if (input.includes('project:') || input.includes('name:')) {
+            const projectMatch = input.match(/(?:project|name):\s*([^,\n]+)/i);
+            if (projectMatch) {
+                newBaseInfo.projectName = projectMatch[1].trim();
+                newCollectedFields.projectName = true;
+            }
+        }
+        
+        // Extract payment amount
+        if (input.includes('payment:') || input.includes('amount:')) {
+            const paymentMatch = input.match(/(?:payment|amount):\s*([\d,]+)/i);
+            if (paymentMatch) {
+                newBaseInfo.paymentAmount = parseFloat(paymentMatch[1].replace(/,/g, ''));
+                newCollectedFields.paymentAmount = true;
+            }
+        }
+        
+        // Extract service duration
+        if (input.includes('duration:') || input.includes('time:')) {
+            const durationMatch = input.match(/(?:duration|time):\s*([^,\n]+)/i);
+            if (durationMatch) {
+                newTypeSpecificInfo.serviceDuration = durationMatch[1].trim();
+                newCollectedFields.serviceDuration = true;
+            }
+        }
+    }
+
+    // Calculate progress based on collected fields
+    const requiredFields = [
+        'userRole', 'projectName', 'paymentAmount', 'serviceDuration',
+        'deliverables', 'milestones', 'escrowType', 'freelancerAddress'
+    ];
+    
+    const collectedCount = Object.values(newCollectedFields).filter(Boolean).length;
+    const progress = Math.min((collectedCount / requiredFields.length) * 100, 100);
+    
+    // Check if all fields are collected
+    const allFieldsCollected = progress >= 90; // Allow some flexibility
+    
+    // Find missing fields
+    const missingFields = requiredFields.filter(field => !newCollectedFields[field]);
+
+    // Enhanced state update with proper synchronization
+    return {
+        ...state,
+        stage: allFieldsCollected ? 'data_ready' : 'information_collection',
+        operation: allFieldsCollected ? 'request_missing_info' : 'collect_initiator_info',
+        progress: progress,
+        stageIndex: getStageIndex(progress),
+        currentFlowStage: getCurrentFlowStage(progress),
+        isStageComplete: progress >= 100,
+        baseInfo: newBaseInfo,
+        typeSpecificInfo: newTypeSpecificInfo,
+        collectedFields: newCollectedFields,
+        information_collection: allFieldsCollected // Set to true when all fields are collected
+    };
+};
